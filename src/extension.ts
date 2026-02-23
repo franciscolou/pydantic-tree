@@ -35,7 +35,7 @@ function registerHoverProvider(): vscode.Disposable {
 
 function registerShowClassCommand(): vscode.Disposable {
     return vscode.commands.registerCommand(
-        'pydanticVisualizer.showClass',
+        'pydanticTree.showClass',
         showClassTree
     );
 }
