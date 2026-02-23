@@ -86,19 +86,23 @@ function getClassUnderCursor(
 function resolveAncestors(
     className: string,
     classes: Map<string, ClassNode>
-): ClassNode[] {
-    return collectAncestors(className, classes)
-        .map(name => classes.get(name))
-        .filter((n): n is ClassNode => Boolean(n));
+): ClassNode[][] {
+    return collectAncestors(className, classes).map(layer =>
+        layer
+            .map(name => classes.get(name))
+            .filter((n): n is ClassNode => Boolean(n))
+    );
 }
 
 function resolveDescendants(
     className: string,
     classes: Map<string, ClassNode>
-): ClassNode[] {
-    return collectDescendants(className, classes)
-        .map(name => classes.get(name))
-        .filter((n): n is ClassNode => Boolean(n));
+): ClassNode[][] {
+    return collectDescendants(className, classes).map(layer =>
+        layer
+            .map(name => classes.get(name))
+            .filter((n): n is ClassNode => Boolean(n))
+    );
 }
 
 /* =========================================================
@@ -107,8 +111,8 @@ function resolveDescendants(
 
 function openClassTreeWebview(
     focus: ClassNode,
-    ancestors: ClassNode[],
-    descendants: ClassNode[]
+    ancestors: ClassNode[][],
+    descendants: ClassNode[][]
 ) {
     const panel = vscode.window.createWebviewPanel(
         'pydanticClassTree',
