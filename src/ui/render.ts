@@ -222,25 +222,22 @@ export function renderClassTreeSVG(
     // over focus
     let currentY = -gap;
 
-    ancestors
-        .slice()
-        .reverse() // upside-down rendering
-        .forEach(node => {
-            // temporary render to get height
-            const rendered = renderClassBoxSVG(node, 0, 0);
+    ancestors.slice().forEach(node => {
+        // temporary render to get height
+        const rendered = renderClassBoxSVG(node, 0, 0);
 
-            // position the box above maintaining fixed GAP
-            const y = currentY - rendered.height;
+        // position the box above maintaining fixed GAP
+        const y = currentY - rendered.height;
 
-            // final render
-            const finalRendered = renderClassBoxSVG(node, 0, y);
-            boxes += finalRendered.svg;
+        // final render
+        const finalRendered = renderClassBoxSVG(node, 0, y);
+        boxes += finalRendered.svg;
 
-            ancestorBoxes.push({ y, height: finalRendered.height });
+        ancestorBoxes.push({ y, height: finalRendered.height });
 
-            // next ancestor goes up maintaining GAP
-            currentY = y - gap;
-        });
+        // next ancestor goes up maintaining GAP
+        currentY = y - gap;
+    });
 
     /* =========================
    FOCUS
