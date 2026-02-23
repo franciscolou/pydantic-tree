@@ -1,20 +1,17 @@
-import type { ClassNode, RenderedBox } from '../types';
+import type { ClassNode, RenderedBox, BoxMeasures } from '../types';
 import { Theme, UI } from '../config';
+import {
+    ClassBox,
+    Line,
+    Svg,
+    Group,
+    Text,
+    TSpan,
+    HtmlRoot,
+} from './components';
 /* =========================================================
-   EDGE RENDERING (SVG)
-   ========================================================= */
-
-function renderVerticalEdge(fromY: number, toY: number): string {
-    return `
-    <line
-      x1="0"
-      y1="${fromY}"
-      x2="0"
-      y2="${toY}"
-      stroke="${Theme.colors.edge}"
-    />
-  `;
-}
+   HELPERS
+========================================================= */
 
 function bottomAnchor(y: number, boxHeight: number): number {
     return y + boxHeight;
@@ -25,8 +22,8 @@ function topAnchor(y: number): number {
 }
 
 /* =========================================================
-   CLASS BOX RENDERING (SVG)
-   ========================================================= */
+   CLASS BOX RENDERING
+========================================================= */
 
 function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
     const {
@@ -41,9 +38,9 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
         borderRadius,
     } = UI.box;
 
-    /* -------------------------
-     Width calculation
-     ------------------------- */
+    /* =====================================================
+     WIDTH CALCULATION
+  ===================================================== */
 
     const attrTexts = node.attributes.map(a => `${a.name}: ${a.type ?? '?'}`);
 
@@ -66,267 +63,333 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
         Math.max(minWidth, longestLineLength * charWidth + sidePadding)
     );
 
-    /* -------------------------
-     Attributes
-     ------------------------- */
+    /* =====================================================
+     CONTENT RENDERING
+  ===================================================== */
 
     let yCursor = headerHeight + padding;
 
     const attributesSVG = node.attributes
         .map(attr => {
-            const svg = `
-        <text x="16" y="${yCursor}" font-size="${Theme.font.size.normal}">
-          <tspan fill="${Theme.colors.attribute}">${attr.name}</tspan>
-          <tspan fill="${Theme.colors.text}">: </tspan>
-          <tspan fill="${Theme.colors.type}">
-            ${attr.type ?? '?'}
-          </tspan>
-        </text>
-      `;
+            const result = Text({
+                x: 16,
+                y: yCursor,
+                fontSize: Theme.font.size.normal,
+                children:
+                    TSpan({
+                        fill: Theme.colors.attribute,
+                        children: attr.name,
+                    }) +
+                    TSpan({ fill: Theme.colors.text, children: ': ' }) +
+                    TSpan({
+                        fill: Theme.colors.type,
+                        children: attr.type ?? '?',
+                    }),
+            });
+
             yCursor += lineHeight;
-            return svg;
+            return result;
         })
         .join('');
-
-    /* -------------------------
-     Divider
-     ------------------------- */
 
     let dividerSVG = '';
 
     if (node.attributes.length && node.methods.length) {
         const dividerY = yCursor + sectionGap / 2;
-        dividerSVG = `
-      <line
-        x1="12"
-        y1="${dividerY}"
-        x2="${width - 12}"
-        y2="${dividerY}"
-        stroke="${Theme.colors.border}"
-      />
-    `;
+
+        dividerSVG = Line({
+            x1: 12,
+            y1: dividerY,
+            x2: width - 12,
+            y2: dividerY,
+            stroke: Theme.colors.border,
+        });
+
         yCursor = dividerY + UI.box.methodTopPadding;
     }
-
-    /* -------------------------
-     Methods
-     ------------------------- */
 
     const methodsSVG = node.methods
         .map(method => {
             const paramsSVG = method.params
-                .map(p => {
-                    let s = `<tspan fill="${Theme.colors.attribute}">${p.name}</tspan>`;
-                    if (p.type) {
-                        s += `<tspan fill="${Theme.colors.text}">: </tspan>`;
-                        s += `<tspan fill="${Theme.colors.type}">${p.type}</tspan>`;
-                    }
-                    return s;
-                })
-                .join(`<tspan fill="${Theme.colors.text}">, </tspan>`);
+                .map(
+                    p =>
+                        TSpan({
+                            fill: Theme.colors.attribute,
+                            children: p.name,
+                        }) +
+                        (p.type
+                            ? TSpan({
+                                  fill: Theme.colors.text,
+                                  children: ': ',
+                              }) +
+                              TSpan({
+                                  fill: Theme.colors.type,
+                                  children: p.type,
+                              })
+                            : '')
+                )
+                .join(
+                    TSpan({
+                        fill: Theme.colors.text,
+                        children: ', ',
+                    })
+                );
 
             const returnSVG = method.returnType
-                ? `<tspan fill="${Theme.colors.text}"> → </tspan>
-           <tspan fill="${Theme.colors.type}">
-             ${method.returnType}
-           </tspan>`
+                ? TSpan({
+                      fill: Theme.colors.text,
+                      children: ' → ',
+                  }) +
+                  TSpan({
+                      fill: Theme.colors.type,
+                      children: method.returnType,
+                  })
                 : '';
 
-            const svg = `
-        <text x="16" y="${yCursor}" font-size="${Theme.font.size.normal}">
-          <tspan fill="${Theme.colors.method}">
-            ${method.name}
-          </tspan>
-          <tspan fill="${Theme.colors.text}">(</tspan>
-          ${paramsSVG}
-          <tspan fill="${Theme.colors.text}">)</tspan>
-          ${returnSVG}
-        </text>
-      `;
+            const result = Text({
+                x: 16,
+                y: yCursor,
+                fontSize: Theme.font.size.normal,
+                children:
+                    TSpan({
+                        fill: Theme.colors.method,
+                        children: method.name,
+                    }) +
+                    TSpan({
+                        fill: Theme.colors.text,
+                        children: '(',
+                    }) +
+                    paramsSVG +
+                    TSpan({
+                        fill: Theme.colors.text,
+                        children: ')',
+                    }) +
+                    returnSVG,
+            });
 
             yCursor += lineHeight;
-            return svg;
+            return result;
         })
         .join('');
 
     const height = yCursor + padding;
 
-    /* -------------------------
-     Box SVG
-     ------------------------- */
+    /* =====================================================
+     STRUCTURE
+  ===================================================== */
 
-    const svg = `
-<g transform="translate(${x - width / 2}, ${y})">
-  <rect
-    x="0"
-    y="0"
-    width="${width}"
-    height="${height}"
-    rx="${borderRadius}"
-    ry="${borderRadius}"
-    fill="${Theme.colors.panelBackground}"
-    stroke="${Theme.colors.border}"
-  />
+    const panel = ClassBox({
+        x: 0,
+        y: 0,
+        width,
+        height,
+        borderRadius,
+        fill: Theme.colors.panelBackground,
+        stroke: Theme.colors.border,
+    });
 
-  <rect
-    x="0"
-    y="0"
-    width="${width}"
-    height="${headerHeight}"
-    fill="${Theme.colors.headerBackground}"
-  />
+    const header = ClassBox({
+        x: 0,
+        y: 0,
+        width,
+        height: headerHeight,
+        fill: Theme.colors.headerBackground,
+        stroke: 'none',
+    });
 
-  <text
-    x="${width / 2}"
-    y="22"
-    text-anchor="middle"
-    font-size="${Theme.font.size.header}"
-    font-weight="${Theme.font.weight.bold}"
-    fill="${Theme.colors.headerText}"
-  >
-    ${node.name}
-  </text>
+    const title = Text({
+        x: width / 2,
+        y: 22,
+        textAnchor: 'middle',
+        fontSize: Theme.font.size.header,
+        fontWeight: Theme.font.weight.bold,
+        fill: Theme.colors.headerText,
+        children: node.name,
+    });
 
-  ${attributesSVG}
-  ${dividerSVG}
-  ${methodsSVG}
-</g>
-`;
+    const group = Group({
+        transform: `translate(${x - width / 2}, ${y})`,
+        children:
+            panel + header + title + attributesSVG + dividerSVG + methodsSVG,
+    });
+
     return {
-        svg,
+        svg: group,
         width,
         height,
     };
 }
 
 /* =========================================================
-   ÁRVORE DE HERANÇA (HTML + SVG)
-   ========================================================= */
+   TREE RENDERING
+========================================================= */
 
 export function renderClassTreeSVG(
     focus: ClassNode,
-    ancestors: ClassNode[],
-    descendants: ClassNode[]
+    ancestorLayers: ClassNode[][],
+    descendantLayers: ClassNode[][]
 ): string {
-    const gap = UI.tree.verticalGap;
+    const verticalGap = UI.tree.verticalGap;
+    const horizontalGap = UI.tree.horizontalGap ?? 120;
 
     let boxes = '';
     let edges = '';
 
-    /* =========================
-   ANCESTORS
-   ========================= */
-
-    const ancestorBoxes: { y: number; height: number }[] = [];
-
-    // over focus
-    let currentY = -gap;
-
-    ancestors.slice().forEach(node => {
-        // temporary render to get height
-        const rendered = renderClassBoxSVG(node, 0, 0);
-
-        // position the box above maintaining fixed GAP
-        const y = currentY - rendered.height;
-
-        // final render
-        const finalRendered = renderClassBoxSVG(node, 0, y);
-        boxes += finalRendered.svg;
-
-        ancestorBoxes.push({ y, height: finalRendered.height });
-
-        // next ancestor goes up maintaining GAP
-        currentY = y - gap;
-    });
-
-    /* =========================
-   FOCUS
-   ========================= */
-
     const focusRendered = renderClassBoxSVG(focus, 0, 0);
     boxes += focusRendered.svg;
 
-    /* =========================
-   EDGES: ANCESTORS → FOCUS
-   ========================= */
+    function renderLayer(layer: ClassNode[], centerY: number) {
+        const pre = layer.map(n => renderClassBoxSVG(n, 0, 0));
 
-    ancestorBoxes.forEach(box => {
-        edges += renderVerticalEdge(
-            bottomAnchor(box.y, box.height),
-            topAnchor(0)
-        );
-    });
+        const totalWidth =
+            pre.reduce((s, r) => s + r.width, 0) +
+            (layer.length - 1) * horizontalGap;
 
-    /* =========================
-   DESCENDANTS
-   ========================= */
+        let xCursor = -totalWidth / 2;
 
-    const descendantBoxes: { y: number; height: number }[] = [];
+        const positioned: BoxMeasures[] = [];
 
-    currentY = bottomAnchor(0, focusRendered.height) + gap;
+        layer.forEach((node, i) => {
+            const x = xCursor + pre[i].width / 2;
+            const y = centerY;
 
-    descendants.forEach(node => {
-        const y = currentY;
+            const rendered = renderClassBoxSVG(node, x, y);
+            boxes += rendered.svg;
 
-        const rendered = renderClassBoxSVG(node, 0, y);
-        boxes += rendered.svg;
+            positioned.push({
+                x,
+                y,
+                width: rendered.width,
+                height: rendered.height,
+            });
 
-        descendantBoxes.push({ y, height: rendered.height });
+            xCursor += pre[i].width + horizontalGap;
+        });
 
-        currentY = bottomAnchor(y, rendered.height) + gap;
-    });
-
-    /* =========================
-   EDGES: FOCUS → DESCENDANTS
-   ========================= */
-
-    descendantBoxes.forEach(box => {
-        edges += renderVerticalEdge(
-            bottomAnchor(0, focusRendered.height),
-            topAnchor(box.y)
-        );
-    });
-
-    return `
-<!DOCTYPE html>
-<html>
-<body
-  style="
-    margin: 0;
-    overflow: hidden;
-    background: ${Theme.colors.background};
-  "
->
-<svg
-  id="svgRoot"
-  width="100%"
-  height="100%"
-  viewBox="0 0 2000 2000"
-  xmlns="http://www.w3.org/2000/svg"
->
-  <style>
-    text {
-      font-family: ${Theme.font.family};
+        return positioned;
     }
-  </style>
 
-  <g
-    id="viewport"
-    transform="
-      translate(${UI.tree.initialTranslate.x},
-                ${UI.tree.initialTranslate.y})
-      scale(1)
-    "
-  >
-    ${edges}
-    ${boxes}
-  </g>
+    /* -------------------------
+     ANCESTORS
+  ------------------------- */
 
-  ${renderViewportScript()}
-</svg>
-</body>
-</html>
-`;
+    let currentY = -verticalGap;
+
+    const ancestorLayerBoxes: BoxMeasures[][] = [];
+
+    for (let i = 0; i < ancestorLayers.length; i++) {
+        const layer = ancestorLayers[i];
+
+        currentY -= verticalGap;
+        const layerBoxes = renderLayer(layer, currentY);
+
+        const maxHeight = Math.max(...layerBoxes.map(b => b.height));
+        currentY -= maxHeight;
+
+        ancestorLayerBoxes.push(layerBoxes);
+    }
+
+    /* -------------------------
+     EDGES ANCESTORS → FOCUS
+  ------------------------- */
+
+    ancestorLayerBoxes.forEach(layer => {
+        layer.forEach(box => {
+            const midY = (bottomAnchor(box.y, box.height) + topAnchor(0)) / 2;
+
+            edges += Line({
+                x1: box.x,
+                y1: bottomAnchor(box.y, box.height),
+                x2: box.x,
+                y2: midY,
+                stroke: Theme.colors.edge,
+            });
+
+            edges += Line({
+                x1: box.x,
+                y1: midY,
+                x2: 0,
+                y2: midY,
+                stroke: Theme.colors.edge,
+            });
+
+            edges += Line({
+                x1: 0,
+                y1: midY,
+                x2: 0,
+                y2: topAnchor(0),
+                stroke: Theme.colors.edge,
+            });
+        });
+    });
+
+    /* -------------------------
+     DESCENDANTS
+  ------------------------- */
+
+    currentY = bottomAnchor(0, focusRendered.height) + verticalGap;
+
+    const descendantLayerBoxes: BoxMeasures[][] = [];
+
+    descendantLayers.forEach(layer => {
+        const layerBoxes = renderLayer(layer, currentY);
+
+        const maxHeight = Math.max(...layerBoxes.map(b => b.height));
+        currentY += maxHeight + verticalGap;
+
+        descendantLayerBoxes.push(layerBoxes);
+    });
+
+    /* -------------------------
+     EDGES FOCUS → DESCENDANTS
+  ------------------------- */
+
+    descendantLayerBoxes.forEach(layer => {
+        layer.forEach(box => {
+            const midY =
+                (bottomAnchor(0, focusRendered.height) + topAnchor(box.y)) / 2;
+
+            edges += Line({
+                x1: 0,
+                y1: bottomAnchor(0, focusRendered.height),
+                x2: 0,
+                y2: midY,
+                stroke: Theme.colors.edge,
+            });
+
+            edges += Line({
+                x1: 0,
+                y1: midY,
+                x2: box.x,
+                y2: midY,
+                stroke: Theme.colors.edge,
+            });
+
+            edges += Line({
+                x1: box.x,
+                y1: midY,
+                x2: box.x,
+                y2: topAnchor(box.y),
+                stroke: Theme.colors.edge,
+            });
+        });
+    });
+
+    return HtmlRoot(
+        Svg({
+            width: '100%',
+            height: '100%',
+            viewBox: '0 0 2000 2000',
+            children:
+                `<style>text{font-family:${Theme.font.family};}</style>` +
+                Group({
+                    transform: `translate(${UI.tree.initialTranslate.x},
+                                  ${UI.tree.initialTranslate.y}) scale(1)`,
+                    children: edges + boxes,
+                }) +
+                renderViewportScript(),
+        })
+    );
 }
 
 /* =========================================================
