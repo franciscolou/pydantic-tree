@@ -21,6 +21,21 @@ function topAnchor(y: number): number {
     return y;
 }
 
+function centerOutSort<T>(items: T[], priorities: number[]): T[] {
+    if (items.length <= 1) return [...items];
+    const indexed = items.map((item, i) => ({ item, priority: priorities[i] }));
+    indexed.sort((a, b) => b.priority - a.priority);
+    const result = new Array<T>(items.length);
+    const center = Math.floor((items.length - 1) / 2);
+    result[center] = indexed[0].item;
+    let r = 1, l = 1;
+    for (let i = 1; i < indexed.length; i++) {
+        if (i % 2 === 1) result[center + r++] = indexed[i].item;
+        else              result[center - l++] = indexed[i].item;
+    }
+    return result;
+}
+
 /* =========================================================
    CLASS BOX RENDERING
 ========================================================= */
@@ -270,6 +285,43 @@ export function renderClassTreeSVG(
     }
 
     /* -------------------------
+     LAYER ORDERING
+  ------------------------- */
+
+    // Chain depth for ancestors: how many more layers above each node exist in the tree.
+    // Computed bottom-up (outermost layer first, index n-1 → 0).
+    const ancestorChainDepths: number[][] = new Array(ancestorLayers.length);
+    for (let i = ancestorLayers.length - 1; i >= 0; i--) {
+        ancestorChainDepths[i] = ancestorLayers[i].map(node => {
+            if (i === ancestorLayers.length - 1) return 0;
+            const parentDepths = ancestorLayers[i + 1]
+                .map((p, j) => ({ d: ancestorChainDepths[i + 1][j], match: (node.bases ?? []).includes(p.name) }))
+                .filter(x => x.match)
+                .map(x => x.d);
+            return parentDepths.length > 0 ? 1 + Math.max(...parentDepths) : 0;
+        });
+    }
+    const orderedAncestorLayers = ancestorLayers.map((layer, i) =>
+        centerOutSort(layer, ancestorChainDepths[i])
+    );
+
+    // Chain depth for descendants: how many more layers below each node exist in the tree.
+    const descendantChainDepths: number[][] = new Array(descendantLayers.length);
+    for (let i = descendantLayers.length - 1; i >= 0; i--) {
+        descendantChainDepths[i] = descendantLayers[i].map(node => {
+            if (i === descendantLayers.length - 1) return 0;
+            const childDepths = descendantLayers[i + 1]
+                .map((c, j) => ({ d: descendantChainDepths[i + 1][j], match: (c.bases ?? []).includes(node.name) }))
+                .filter(x => x.match)
+                .map(x => x.d);
+            return childDepths.length > 0 ? 1 + Math.max(...childDepths) : 0;
+        });
+    }
+    const orderedDescendantLayers = descendantLayers.map((layer, i) =>
+        centerOutSort(layer, descendantChainDepths[i])
+    );
+
+    /* -------------------------
      ANCESTORS
   ------------------------- */
 
@@ -277,8 +329,8 @@ export function renderClassTreeSVG(
 
     const ancestorLayerBoxes: BoxMeasures[][] = [];
 
-    for (let i = 0; i < ancestorLayers.length; i++) {
-        const layer = ancestorLayers[i];
+    for (let i = 0; i < orderedAncestorLayers.length; i++) {
+        const layer = orderedAncestorLayers[i];
 
         currentY -= verticalGap;
         const layerBoxes = renderLayer(layer, currentY);
@@ -310,8 +362,8 @@ export function renderClassTreeSVG(
     for (let i = 1; i < ancestorLayerBoxes.length; i++) {
         const parentLayer = ancestorLayerBoxes[i];
         const childLayer  = ancestorLayerBoxes[i - 1];
-        const parentNodes = ancestorLayers[i];
-        const childNodes  = ancestorLayers[i - 1];
+        const parentNodes = orderedAncestorLayers[i];
+        const childNodes  = orderedAncestorLayers[i - 1];
         const midY = (
             Math.max(...parentLayer.map(b => bottomAnchor(b.y, b.height))) +
             Math.min(...childLayer.map(b => b.y))
@@ -341,7 +393,7 @@ export function renderClassTreeSVG(
 
     const descendantLayerBoxes: BoxMeasures[][] = [];
 
-    descendantLayers.forEach(layer => {
+    orderedDescendantLayers.forEach(layer => {
         const layerBoxes = renderLayer(layer, currentY);
 
         const maxHeight = Math.max(...layerBoxes.map(b => b.height));
@@ -371,8 +423,8 @@ export function renderClassTreeSVG(
     for (let i = 1; i < descendantLayerBoxes.length; i++) {
         const parentLayer = descendantLayerBoxes[i - 1];
         const childLayer  = descendantLayerBoxes[i];
-        const parentNodes = descendantLayers[i - 1];
-        const childNodes  = descendantLayers[i];
+        const parentNodes = orderedDescendantLayers[i - 1];
+        const childNodes  = orderedDescendantLayers[i];
         const midY = (
             Math.max(...parentLayer.map(b => bottomAnchor(b.y, b.height))) +
             Math.min(...childLayer.map(b => b.y))
