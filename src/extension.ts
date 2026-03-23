@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { extractClasses } from './parser';
+import { extractClasses, buildAncestorMap } from './parser';
 import { ClassNode } from './types';
 import { renderClassTreeSVG } from './ui/render';
 import { collectAncestors, collectDescendants } from './ui/resolve';
@@ -24,8 +24,8 @@ export function deactivate() {}
 
 function registerHoverProvider(): vscode.Disposable {
     return vscode.languages.registerHoverProvider('python', {
-        provideHover(document, position) {
-            const node = getClassUnderCursor(document, position);
+        async provideHover(document, position) {
+            const node = await getClassUnderCursor(document, position);
             if (!node) return;
 
             return createClassHover(node);
@@ -44,20 +44,19 @@ function registerShowClassCommand(): vscode.Disposable {
    COMMAND HANDLERS
    ========================================================= */
 
-function showClassTree() {
+async function showClassTree() {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
 
-    const document = editor.document;
-    const position = editor.selection.active;
-
-    const classes = extractClasses(document);
-    const focusNode = getClassUnderCursor(document, position, classes);
+    const { document, selection } = editor;
+    const focusNode = await getClassUnderCursor(document, selection.active);
 
     if (!focusNode) {
         vscode.window.showInformationMessage(Messages.noClassUnderCursor);
         return;
     }
+
+    const classes = await buildAncestorMap(focusNode.name, document);
 
     const ancestors = resolveAncestors(focusNode.name, classes);
     const descendants = resolveDescendants(focusNode.name, classes);
@@ -69,16 +68,15 @@ function showClassTree() {
    CLASS RESOLUTION
    ========================================================= */
 
-function getClassUnderCursor(
+async function getClassUnderCursor(
     document: vscode.TextDocument,
-    position: vscode.Position,
-    cached?: Map<string, ClassNode>
-): ClassNode | undefined {
+    position: vscode.Position
+): Promise<ClassNode | undefined> {
     const range = document.getWordRangeAtPosition(position);
     if (!range) return;
 
     const word = document.getText(range);
-    const classes = cached ?? extractClasses(document);
+    const classes = await extractClasses(document);
 
     return classes.get(word);
 }
@@ -140,10 +138,10 @@ function renderClassMarkdown(node: ClassNode): string {
 
 **Bases:** ${formatBases(node)}
 
-**Atributos:**  
+**Atributos:**
 ${formatAttributes(node)}
 
-**Métodos:**  
+**Métodos:**
 ${formatMethods(node)}
 `;
 }
