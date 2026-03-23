@@ -293,36 +293,45 @@ export function renderClassTreeSVG(
      EDGES ANCESTORS → FOCUS
   ------------------------- */
 
-    const ancestorMidYs: number[] = ancestorLayerBoxes.map((layer, i) => {
+    // Layer 0: shared bus — all direct parents connect to the focus via a single bus at x=0
+    if (ancestorLayerBoxes.length > 0) {
+        const layer = ancestorLayerBoxes[0];
         const layerBottom = Math.max(...layer.map(b => bottomAnchor(b.y, b.height)));
-        const childTop = i === 0
-            ? topAnchor(0)
-            : Math.min(...ancestorLayerBoxes[i - 1].map(b => b.y));
-        return (layerBottom + childTop) / 2;
-    });
-
-    ancestorLayerBoxes.forEach((layer, i) => {
-        const midY = ancestorMidYs[i];
-        const stemBottom = i === 0 ? topAnchor(0) : ancestorMidYs[i - 1];
-
+        const midY = (layerBottom + topAnchor(0)) / 2;
         const xs = layer.map(b => b.x);
-        const busX1 = Math.min(...xs, 0);
-        const busX2 = Math.max(...xs, 0);
-
-        edges += Line({ x1: busX1, y1: midY, x2: busX2, y2: midY, stroke: Theme.colors.edge });
-
+        edges += Line({ x1: Math.min(...xs, 0), y1: midY, x2: Math.max(...xs, 0), y2: midY, stroke: Theme.colors.edge });
         layer.forEach(box => {
-            edges += Line({
-                x1: box.x,
-                y1: bottomAnchor(box.y, box.height),
-                x2: box.x,
-                y2: midY,
-                stroke: Theme.colors.edge,
+            edges += Line({ x1: box.x, y1: bottomAnchor(box.y, box.height), x2: box.x, y2: midY, stroke: Theme.colors.edge });
+        });
+        edges += Line({ x1: 0, y1: midY, x2: 0, y2: topAnchor(0), stroke: Theme.colors.edge });
+    }
+
+    // Layers i > 0: each node connects only to its actual children in the layer below
+    for (let i = 1; i < ancestorLayerBoxes.length; i++) {
+        const parentLayer = ancestorLayerBoxes[i];
+        const childLayer  = ancestorLayerBoxes[i - 1];
+        const parentNodes = ancestorLayers[i];
+        const childNodes  = ancestorLayers[i - 1];
+        const midY = (
+            Math.max(...parentLayer.map(b => bottomAnchor(b.y, b.height))) +
+            Math.min(...childLayer.map(b => b.y))
+        ) / 2;
+
+        parentNodes.forEach((pNode, j) => {
+            const p = parentLayer[j];
+            const children = childNodes
+                .map((cNode, k) => ({ cNode, cBox: childLayer[k] }))
+                .filter(({ cNode }) => (cNode.bases ?? []).includes(pNode.name));
+
+            if (children.length === 0) return;
+
+            edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: midY, stroke: Theme.colors.edge });
+            children.forEach(({ cBox }) => {
+                edges += Line({ x1: p.x, y1: midY, x2: cBox.x, y2: midY, stroke: Theme.colors.edge });
+                edges += Line({ x1: cBox.x, y1: midY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
             });
         });
-
-        edges += Line({ x1: 0, y1: midY, x2: 0, y2: stemBottom, stroke: Theme.colors.edge });
-    });
+    }
 
     /* -------------------------
      DESCENDANTS
@@ -345,36 +354,45 @@ export function renderClassTreeSVG(
      EDGES FOCUS → DESCENDANTS
   ------------------------- */
 
-    const descendantMidYs: number[] = descendantLayerBoxes.map((layer, i) => {
+    // Layer 0: shared bus — focus connects to all direct children via a single bus at x=0
+    if (descendantLayerBoxes.length > 0) {
+        const layer = descendantLayerBoxes[0];
         const layerTop = Math.min(...layer.map(b => topAnchor(b.y)));
-        const parentBottom = i === 0
-            ? bottomAnchor(0, focusRendered.height)
-            : Math.max(...descendantLayerBoxes[i - 1].map(b => bottomAnchor(b.y, b.height)));
-        return (parentBottom + layerTop) / 2;
-    });
-
-    descendantLayerBoxes.forEach((layer, i) => {
-        const midY = descendantMidYs[i];
-        const stemTop = i === 0 ? bottomAnchor(0, focusRendered.height) : descendantMidYs[i - 1];
-
+        const midY = (bottomAnchor(0, focusRendered.height) + layerTop) / 2;
         const xs = layer.map(b => b.x);
-        const busX1 = Math.min(...xs, 0);
-        const busX2 = Math.max(...xs, 0);
-
-        edges += Line({ x1: 0, y1: stemTop, x2: 0, y2: midY, stroke: Theme.colors.edge });
-
-        edges += Line({ x1: busX1, y1: midY, x2: busX2, y2: midY, stroke: Theme.colors.edge });
-
+        edges += Line({ x1: 0, y1: bottomAnchor(0, focusRendered.height), x2: 0, y2: midY, stroke: Theme.colors.edge });
+        edges += Line({ x1: Math.min(...xs, 0), y1: midY, x2: Math.max(...xs, 0), y2: midY, stroke: Theme.colors.edge });
         layer.forEach(box => {
-            edges += Line({
-                x1: box.x,
-                y1: midY,
-                x2: box.x,
-                y2: topAnchor(box.y),
-                stroke: Theme.colors.edge,
+            edges += Line({ x1: box.x, y1: midY, x2: box.x, y2: topAnchor(box.y), stroke: Theme.colors.edge });
+        });
+    }
+
+    // Layers i > 0: each node connects only to its actual children in the layer below
+    for (let i = 1; i < descendantLayerBoxes.length; i++) {
+        const parentLayer = descendantLayerBoxes[i - 1];
+        const childLayer  = descendantLayerBoxes[i];
+        const parentNodes = descendantLayers[i - 1];
+        const childNodes  = descendantLayers[i];
+        const midY = (
+            Math.max(...parentLayer.map(b => bottomAnchor(b.y, b.height))) +
+            Math.min(...childLayer.map(b => b.y))
+        ) / 2;
+
+        parentNodes.forEach((pNode, j) => {
+            const p = parentLayer[j];
+            const children = childNodes
+                .map((cNode, k) => ({ cNode, cBox: childLayer[k] }))
+                .filter(({ cNode }) => (cNode.bases ?? []).includes(pNode.name));
+
+            if (children.length === 0) return;
+
+            edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: midY, stroke: Theme.colors.edge });
+            children.forEach(({ cBox }) => {
+                edges += Line({ x1: p.x, y1: midY, x2: cBox.x, y2: midY, stroke: Theme.colors.edge });
+                edges += Line({ x1: cBox.x, y1: midY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
             });
         });
-    });
+    }
 
     return HtmlRoot(
         Svg({
