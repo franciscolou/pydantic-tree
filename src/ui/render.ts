@@ -289,16 +289,21 @@ export function renderClassTreeSVG(
   ------------------------- */
 
     // Chain depth for ancestors: how many more layers above each node exist in the tree.
-    // Computed bottom-up (outermost layer first, index n-1 → 0).
+    // Checks ALL layers above i (not just i+1) to handle non-adjacent inheritance edges that
+    // arise from longest-path layering (e.g. SizedObject at layer 0 whose parent FileSystemObject
+    // is at layer 3 rather than layer 1).
     const ancestorChainDepths: number[][] = new Array(ancestorLayers.length);
     for (let i = ancestorLayers.length - 1; i >= 0; i--) {
         ancestorChainDepths[i] = ancestorLayers[i].map(node => {
-            if (i === ancestorLayers.length - 1) return 0;
-            const parentDepths = ancestorLayers[i + 1]
-                .map((p, j) => ({ d: ancestorChainDepths[i + 1][j], match: (node.bases ?? []).includes(p.name) }))
-                .filter(x => x.match)
-                .map(x => x.d);
-            return parentDepths.length > 0 ? 1 + Math.max(...parentDepths) : 0;
+            let maxDepth = 0;
+            for (let j = i + 1; j < ancestorLayers.length; j++) {
+                ancestorLayers[j].forEach((p, k) => {
+                    if ((node.bases ?? []).includes(p.name)) {
+                        maxDepth = Math.max(maxDepth, ancestorChainDepths[j][k] + 1);
+                    }
+                });
+            }
+            return maxDepth;
         });
     }
     const orderedAncestorLayers = ancestorLayers.map((layer, i) =>
@@ -358,30 +363,42 @@ export function renderClassTreeSVG(
         edges += Line({ x1: 0, y1: midY, x2: 0, y2: topAnchor(0), stroke: Theme.colors.edge });
     }
 
-    // Layers i > 0: each node connects only to its actual children in the layer below
+    // Layers i > 0: each parent connects to ALL children in any lower layer j < i.
+    // busY is placed in the gap just below layer i (between layer i and layer i-1),
+    // so all connections FROM a given parent layer share the same dedicated bus,
+    // preventing non-adjacent long edges from sharing a bus with unrelated adjacent edges.
     for (let i = 1; i < ancestorLayerBoxes.length; i++) {
-        const parentLayer = ancestorLayerBoxes[i];
-        const childLayer  = ancestorLayerBoxes[i - 1];
         const parentNodes = orderedAncestorLayers[i];
-        const childNodes  = orderedAncestorLayers[i - 1];
-        const midY = (
-            Math.max(...parentLayer.map(b => bottomAnchor(b.y, b.height))) +
-            Math.min(...childLayer.map(b => b.y))
+        const parentBoxes = ancestorLayerBoxes[i];
+
+        const busY = (
+            Math.max(...ancestorLayerBoxes[i].map(b => bottomAnchor(b.y, b.height))) +
+            Math.min(...ancestorLayerBoxes[i - 1].map(b => b.y))
         ) / 2;
 
-        parentNodes.forEach((pNode, j) => {
-            const p = parentLayer[j];
-            const children = childNodes
-                .map((cNode, k) => ({ cNode, cBox: childLayer[k] }))
-                .filter(({ cNode }) => (cNode.bases ?? []).includes(pNode.name));
+        parentNodes.forEach((pNode, pIdx) => {
+            const p = parentBoxes[pIdx];
+            let drewVertical = false;
 
-            if (children.length === 0) return;
+            for (let j = 0; j < i; j++) {
+                const childNodes = orderedAncestorLayers[j];
+                const childBoxes = ancestorLayerBoxes[j];
 
-            edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: midY, stroke: Theme.colors.edge });
-            children.forEach(({ cBox }) => {
-                edges += Line({ x1: p.x, y1: midY, x2: cBox.x, y2: midY, stroke: Theme.colors.edge });
-                edges += Line({ x1: cBox.x, y1: midY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
-            });
+                const children = childNodes
+                    .map((cNode, ci) => ({ cNode, cBox: childBoxes[ci] }))
+                    .filter(({ cNode }) => (cNode.bases ?? []).includes(pNode.name));
+
+                if (children.length === 0) continue;
+
+                if (!drewVertical) {
+                    drewVertical = true;
+                    edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: busY, stroke: Theme.colors.edge });
+                }
+                children.forEach(({ cBox }) => {
+                    edges += Line({ x1: p.x, y1: busY, x2: cBox.x, y2: busY, stroke: Theme.colors.edge });
+                    edges += Line({ x1: cBox.x, y1: busY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
+                });
+            }
         });
     }
 
