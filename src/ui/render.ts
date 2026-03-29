@@ -364,14 +364,15 @@ export function renderClassTreeSVG(
     }
 
     // Layers i > 0: each parent connects to ALL children in any lower layer j < i.
-    // busY is placed in the gap just below layer i (between layer i and layer i-1),
-    // so all connections FROM a given parent layer share the same dedicated bus,
-    // preventing non-adjacent long edges from sharing a bus with unrelated adjacent edges.
+    // - Adjacent (j = i-1): use a shared bus in the gap just below layer i.
+    // - Non-adjacent (j < i-1): route around the outside of the diagram to avoid
+    //   passing through intermediate boxes, which would create false visual connections.
     for (let i = 1; i < ancestorLayerBoxes.length; i++) {
         const parentNodes = orderedAncestorLayers[i];
         const parentBoxes = ancestorLayerBoxes[i];
 
-        const busY = (
+        // adjacentBusY: gap between layer i (above) and layer i-1 (below)
+        const adjacentBusY = (
             Math.max(...ancestorLayerBoxes[i].map(b => bottomAnchor(b.y, b.height))) +
             Math.min(...ancestorLayerBoxes[i - 1].map(b => b.y))
         ) / 2;
@@ -379,6 +380,13 @@ export function renderClassTreeSVG(
         parentNodes.forEach((pNode, pIdx) => {
             const p = parentBoxes[pIdx];
             let drewVertical = false;
+
+            const drawVerticalIfNeeded = () => {
+                if (!drewVertical) {
+                    drewVertical = true;
+                    edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: adjacentBusY, stroke: Theme.colors.edge });
+                }
+            };
 
             for (let j = 0; j < i; j++) {
                 const childNodes = orderedAncestorLayers[j];
@@ -390,14 +398,41 @@ export function renderClassTreeSVG(
 
                 if (children.length === 0) continue;
 
-                if (!drewVertical) {
-                    drewVertical = true;
-                    edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: busY, stroke: Theme.colors.edge });
+                if (j === i - 1) {
+                    // Adjacent: drop straight from the shared bus to the child
+                    drawVerticalIfNeeded();
+                    children.forEach(({ cBox }) => {
+                        edges += Line({ x1: p.x, y1: adjacentBusY, x2: cBox.x, y2: adjacentBusY, stroke: Theme.colors.edge });
+                        edges += Line({ x1: cBox.x, y1: adjacentBusY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
+                    });
+                } else {
+                    // Non-adjacent: route outside all intermediate boxes to avoid crossing them.
+                    // Path: parent → adjacentBusY → sideX → childBusY (alongside the outside) → child
+                    const childBusY = (
+                        Math.max(...ancestorLayerBoxes[j + 1].map(b => bottomAnchor(b.y, b.height))) +
+                        Math.min(...ancestorLayerBoxes[j].map(b => b.y))
+                    ) / 2;
+
+                    // Collect all boxes from layer j to layer i that the route passes near
+                    const nearbyBoxes: BoxMeasures[] = [];
+                    for (let k = j; k <= i; k++) nearbyBoxes.push(...ancestorLayerBoxes[k]);
+
+                    const margin = 40;
+
+                    children.forEach(({ cBox }) => {
+                        const routeRight = cBox.x >= 0;
+                        const sideX = routeRight
+                            ? Math.max(...nearbyBoxes.map(b => b.x + b.width / 2)) + margin
+                            : Math.min(...nearbyBoxes.map(b => b.x - b.width / 2)) - margin;
+
+                        drawVerticalIfNeeded();
+                        // parent's bus → outside column → child's bus → child top
+                        edges += Line({ x1: p.x, y1: adjacentBusY, x2: sideX, y2: adjacentBusY, stroke: Theme.colors.edge });
+                        edges += Line({ x1: sideX, y1: adjacentBusY, x2: sideX, y2: childBusY, stroke: Theme.colors.edge });
+                        edges += Line({ x1: sideX, y1: childBusY, x2: cBox.x, y2: childBusY, stroke: Theme.colors.edge });
+                        edges += Line({ x1: cBox.x, y1: childBusY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
+                    });
                 }
-                children.forEach(({ cBox }) => {
-                    edges += Line({ x1: p.x, y1: busY, x2: cBox.x, y2: busY, stroke: Theme.colors.edge });
-                    edges += Line({ x1: cBox.x, y1: busY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
-                });
             }
         });
     }
