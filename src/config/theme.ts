@@ -12,6 +12,7 @@ export const Theme = {
         string: '#ce9178',
         attribute: '#9cdcfe',
         method: '#dccd79',
+        override: '#c586c0',
 
         edge: '#6a6a6a',
     },

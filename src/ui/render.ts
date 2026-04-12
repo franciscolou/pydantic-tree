@@ -21,6 +21,27 @@ function topAnchor(y: number): number {
     return y;
 }
 
+function collectInheritedNames(
+    node: ClassNode,
+    allNodes: Map<string, ClassNode>
+): { attrs: Set<string>; methods: Set<string> } {
+    const attrs = new Set<string>();
+    const methods = new Set<string>();
+    const visited = new Set<string>();
+    const stack = [...node.bases];
+    while (stack.length) {
+        const name = stack.pop()!;
+        if (visited.has(name)) continue;
+        visited.add(name);
+        const base = allNodes.get(name);
+        if (!base) continue;
+        for (const a of base.attributes) attrs.add(a.name);
+        for (const m of base.methods) methods.add(m.name);
+        stack.push(...base.bases);
+    }
+    return { attrs, methods };
+}
+
 function centerOutSort<T>(items: T[], priorities: number[]): T[] {
     if (items.length <= 1) return [...items];
     const indexed = items.map((item, i) => ({ item, priority: priorities[i] }));
@@ -62,7 +83,12 @@ function renderTypeSpans(typeStr: string): string {
    CLASS BOX RENDERING
 ========================================================= */
 
-function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
+function renderClassBoxSVG(
+    node: ClassNode,
+    x: number,
+    y: number,
+    inherited: { attrs: Set<string>; methods: Set<string> }
+): RenderedBox {
     const {
         lineHeight,
         headerHeight,
@@ -114,7 +140,7 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
                 fontSize: Theme.font.size.normal,
                 children:
                     TSpan({
-                        fill: Theme.colors.attribute,
+                        fill: inherited.attrs.has(attr.name) ? Theme.colors.override : Theme.colors.attribute,
                         children: attr.name,
                     }) +
                     TSpan({ fill: Theme.colors.text, children: ': ' }) +
@@ -180,7 +206,7 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
                 fontSize: Theme.font.size.normal,
                 children:
                     TSpan({
-                        fill: Theme.colors.method,
+                        fill: inherited.methods.has(method.name) ? Theme.colors.override : Theme.colors.method,
                         children: method.name,
                     }) +
                     TSpan({
@@ -260,14 +286,20 @@ export function renderClassTreeSVG(
     const verticalGap = UI.tree.verticalGap;
     const horizontalGap = UI.tree.horizontalGap ?? 120;
 
+    const allNodes = new Map<string, ClassNode>();
+    allNodes.set(focus.name, focus);
+    for (const layer of ancestorLayers) for (const n of layer) allNodes.set(n.name, n);
+    for (const layer of descendantLayers) for (const n of layer) allNodes.set(n.name, n);
+
     let boxes = '';
     let edges = '';
 
-    const focusRendered = renderClassBoxSVG(focus, 0, 0);
+    const focusRendered = renderClassBoxSVG(focus, 0, 0, collectInheritedNames(focus, allNodes));
     boxes += focusRendered.svg;
 
     function renderLayer(layer: ClassNode[], centerY: number) {
-        const pre = layer.map(n => renderClassBoxSVG(n, 0, 0));
+        const inheritedPerNode = layer.map(n => collectInheritedNames(n, allNodes));
+        const pre = layer.map((n, i) => renderClassBoxSVG(n, 0, 0, inheritedPerNode[i]));
 
         const totalWidth =
             pre.reduce((s, r) => s + r.width, 0) +
@@ -281,7 +313,7 @@ export function renderClassTreeSVG(
             const x = xCursor + pre[i].width / 2;
             const y = centerY;
 
-            const rendered = renderClassBoxSVG(node, x, y);
+            const rendered = renderClassBoxSVG(node, x, y, inheritedPerNode[i]);
             boxes += rendered.svg;
 
             positioned.push({
