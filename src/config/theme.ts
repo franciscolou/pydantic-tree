@@ -9,6 +9,7 @@ export const Theme = {
 
         text: '#d4d4d4',
         type: '#4ec9b0',
+        string: '#ce9178',
         attribute: '#9cdcfe',
         method: '#dccd79',
 

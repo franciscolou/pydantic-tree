@@ -237,11 +237,24 @@ function parseBases(lineText: string): string[] {
         .filter(Boolean);
 }
 
+function splitParams(raw: string): string[] {
+    const parts: string[] = [];
+    let depth = 0;
+    let current = '';
+    for (const ch of raw) {
+        if (ch === '(' || ch === '[' || ch === '{') { depth++; current += ch; }
+        else if (ch === ')' || ch === ']' || ch === '}') { depth--; current += ch; }
+        else if (ch === ',' && depth === 0) { parts.push(current); current = ''; }
+        else { current += ch; }
+    }
+    if (current) parts.push(current);
+    return parts;
+}
+
 function parseParams(raw: string): MethodParam[] {
     if (!raw.trim()) return [];
 
-    return raw
-        .split(',')
+    return splitParams(raw)
         .map(p => p.trim())
         .filter(p => p && p !== 'self' && p !== 'cls' && !p.startsWith('*'))
         .map(p => {

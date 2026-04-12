@@ -37,6 +37,28 @@ function centerOutSort<T>(items: T[], priorities: number[]): T[] {
 }
 
 /* =========================================================
+   TYPE SPAN RENDERING
+========================================================= */
+
+function renderTypeSpans(typeStr: string): string {
+    // Split on quoted string literals and square brackets, preserving the delimiters
+    const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]])/);
+    return tokens
+        .map(token => {
+            if (!token) return '';
+            if ((token.startsWith("'") && token.endsWith("'")) ||
+                (token.startsWith('"') && token.endsWith('"'))) {
+                return TSpan({ fill: Theme.colors.string, children: token });
+            }
+            if (token === '[' || token === ']') {
+                return TSpan({ fill: Theme.colors.text, children: token });
+            }
+            return TSpan({ fill: Theme.colors.type, children: token });
+        })
+        .join('');
+}
+
+/* =========================================================
    CLASS BOX RENDERING
 ========================================================= */
 
@@ -96,10 +118,7 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
                         children: attr.name,
                     }) +
                     TSpan({ fill: Theme.colors.text, children: ': ' }) +
-                    TSpan({
-                        fill: Theme.colors.type,
-                        children: attr.type ?? '?',
-                    }),
+                    renderTypeSpans(attr.type ?? '?'),
             });
 
             yCursor += lineHeight;
@@ -137,10 +156,7 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
                                   fill: Theme.colors.text,
                                   children: ': ',
                               }) +
-                              TSpan({
-                                  fill: Theme.colors.type,
-                                  children: p.type,
-                              })
+                              renderTypeSpans(p.type)
                             : '')
                 )
                 .join(
@@ -155,10 +171,7 @@ function renderClassBoxSVG(node: ClassNode, x: number, y: number): RenderedBox {
                       fill: Theme.colors.text,
                       children: ' → ',
                   }) +
-                  TSpan({
-                      fill: Theme.colors.type,
-                      children: method.returnType,
-                  })
+                  renderTypeSpans(method.returnType)
                 : '';
 
             const result = Text({
