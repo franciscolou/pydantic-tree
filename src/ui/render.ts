@@ -102,17 +102,36 @@ function renderClassBoxSVG(
     } = UI.box;
 
     /* =====================================================
+     METHOD LAYOUT (wrap vs single-line)
+  ===================================================== */
+
+    const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
+    const indentStr = '    ';
+    const indentPx  = indentStr.length * charWidth;
+
+    interface MethodLayout { wrapped: boolean; measureLines: string[]; }
+
+    const methodLayouts: MethodLayout[] = node.methods.map(m => {
+        const singleLine =
+            `${m.name}(${m.params.map(p => `${p.name}${p.type ? `: ${p.type}` : ''}`).join(', ')})` +
+            `${m.returnType ? ` -> ${m.returnType}` : ''}`;
+        if (singleLine.length <= wrapAt) return { wrapped: false, measureLines: [singleLine] };
+        return {
+            wrapped: true,
+            measureLines: [
+                `${m.name}(`,
+                ...m.params.map(p => `${indentStr}${p.name}${p.type ? `: ${p.type}` : ''},`),
+                `) -> ${m.returnType ?? ''}`,
+            ],
+        };
+    });
+
+    /* =====================================================
      WIDTH CALCULATION
   ===================================================== */
 
-    const attrTexts = node.attributes.map(a => `${a.name}: ${a.type ?? '?'}`);
-
-    const methodTexts = node.methods.map(m => {
-        const params = m.params
-            .map(p => `${p.name}${p.type ? `: ${p.type}` : ''}`)
-            .join(', ');
-        return `${m.name}(${params})${m.returnType ? ` -> ${m.returnType}` : ''}`;
-    });
+    const attrTexts   = node.attributes.map(a => `${a.name}: ${a.type ?? '?'}`);
+    const methodTexts = methodLayouts.flatMap(ml => ml.measureLines);
 
     const longestLineLength = Math.max(
         node.name.length,
@@ -169,60 +188,73 @@ function renderClassBoxSVG(
     }
 
     const methodsSVG = node.methods
-        .map(method => {
-            const paramsSVG = method.params
-                .map(
-                    p =>
-                        TSpan({
-                            fill: Theme.colors.attribute,
-                            children: p.name,
-                        }) +
+        .map((method, i) => {
+            const methodColor = inherited.methods.has(method.name)
+                ? Theme.colors.override
+                : Theme.colors.method;
+
+            if (!methodLayouts[i].wrapped) {
+                const paramsSVG = method.params
+                    .map(p =>
+                        TSpan({ fill: Theme.colors.attribute, children: p.name }) +
                         (p.type
-                            ? TSpan({
-                                  fill: Theme.colors.text,
-                                  children: ': ',
-                              }) +
-                              renderTypeSpans(p.type)
+                            ? TSpan({ fill: Theme.colors.text, children: ': ' }) + renderTypeSpans(p.type)
                             : '')
-                )
-                .join(
-                    TSpan({
-                        fill: Theme.colors.text,
-                        children: ', ',
-                    })
-                );
+                    )
+                    .join(TSpan({ fill: Theme.colors.text, children: ', ' }));
 
-            const returnSVG = method.returnType
-                ? TSpan({
-                      fill: Theme.colors.text,
-                      children: ' → ',
-                  }) +
-                  renderTypeSpans(method.returnType)
-                : '';
+                const returnSVG = method.returnType
+                    ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
+                    : '';
 
-            const result = Text({
-                x: 16,
-                y: yCursor,
-                fontSize: Theme.font.size.normal,
+                const result = Text({
+                    x: 16, y: yCursor, fontSize: Theme.font.size.normal,
+                    children:
+                        TSpan({ fill: methodColor, children: method.name }) +
+                        TSpan({ fill: Theme.colors.text, children: '(' }) +
+                        paramsSVG +
+                        TSpan({ fill: Theme.colors.text, children: ')' }) +
+                        returnSVG,
+                });
+                yCursor += lineHeight;
+                return result;
+            }
+
+            // Wrapped: name( / indented params / ) → ReturnType
+            const lines: string[] = [];
+
+            lines.push(Text({
+                x: 16, y: yCursor, fontSize: Theme.font.size.normal,
                 children:
-                    TSpan({
-                        fill: inherited.methods.has(method.name) ? Theme.colors.override : Theme.colors.method,
-                        children: method.name,
-                    }) +
-                    TSpan({
-                        fill: Theme.colors.text,
-                        children: '(',
-                    }) +
-                    paramsSVG +
-                    TSpan({
-                        fill: Theme.colors.text,
-                        children: ')',
-                    }) +
-                    returnSVG,
-            });
-
+                    TSpan({ fill: methodColor, children: method.name }) +
+                    TSpan({ fill: Theme.colors.text, children: '(' }),
+            }));
             yCursor += lineHeight;
-            return result;
+
+            for (const p of method.params) {
+                lines.push(Text({
+                    x: 16 + indentPx, y: yCursor, fontSize: Theme.font.size.normal,
+                    children:
+                        TSpan({ fill: Theme.colors.attribute, children: p.name }) +
+                        (p.type
+                            ? TSpan({ fill: Theme.colors.text, children: ': ' }) + renderTypeSpans(p.type)
+                            : '') +
+                        TSpan({ fill: Theme.colors.text, children: ',' }),
+                }));
+                yCursor += lineHeight;
+            }
+
+            lines.push(Text({
+                x: 16, y: yCursor, fontSize: Theme.font.size.normal,
+                children:
+                    TSpan({ fill: Theme.colors.text, children: ')' }) +
+                    (method.returnType
+                        ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
+                        : ''),
+            }));
+            yCursor += lineHeight;
+
+            return lines.join('');
         })
         .join('');
 
@@ -261,10 +293,17 @@ function renderClassBoxSVG(
         children: node.name,
     });
 
+    const clipId = `clip-${node.name.replace(/\W/g, '_')}`;
+    const clipDef =
+        `<defs><clipPath id="${clipId}">` +
+        `<rect x="0" y="${headerHeight}" width="${width}" height="${height - headerHeight}"/>` +
+        `</clipPath></defs>`;
+    const clippedContent =
+        `<g clip-path="url(#${clipId})">${attributesSVG}${dividerSVG}${methodsSVG}</g>`;
+
     const group = Group({
         transform: `translate(${x - width / 2}, ${y})`,
-        children:
-            panel + header + title + attributesSVG + dividerSVG + methodsSVG,
+        children: clipDef + panel + header + title + clippedContent,
     });
 
     return {
@@ -375,20 +414,15 @@ export function renderClassTreeSVG(
      ANCESTORS
   ------------------------- */
 
-    let currentY = -verticalGap;
+    let currentY = 0;
 
     const ancestorLayerBoxes: BoxMeasures[][] = [];
 
-    for (let i = 0; i < orderedAncestorLayers.length; i++) {
-        const layer = orderedAncestorLayers[i];
-
-        currentY -= verticalGap;
-        const layerBoxes = renderLayer(layer, currentY);
-
-        const maxHeight = Math.max(...layerBoxes.map(b => b.height));
-        currentY -= maxHeight;
-
-        ancestorLayerBoxes.push(layerBoxes);
+    for (const layer of orderedAncestorLayers) {
+        const inherited = layer.map(n => collectInheritedNames(n, allNodes));
+        const maxH = Math.max(...layer.map((n, j) => renderClassBoxSVG(n, 0, 0, inherited[j]).height));
+        currentY -= verticalGap + maxH;
+        ancestorLayerBoxes.push(renderLayer(layer, currentY));
     }
 
     /* -------------------------

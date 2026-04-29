@@ -8,7 +8,7 @@ export const UI = {
         lineHeight: 20,
         sidePadding: 32,
         borderRadius: 6,
-        charWidth: 8.2,
+        charWidth: 8.8,
         methodTopPadding: 12,
     },
 
