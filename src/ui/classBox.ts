@@ -2,6 +2,10 @@ import type { ClassNode, RenderedBox } from '../types';
 import { Theme, UI } from '../config';
 import { ClassBox, Line, Text, TSpan, Group } from './components';
 
+function navGroup(fileUri: string, line: number, content: string): string {
+    return `<g data-file="${fileUri}" data-line="${line}" style="cursor:pointer">${content}</g>`;
+}
+
 /* =========================================================
    INHERITED NAMES
 ========================================================= */
@@ -121,7 +125,7 @@ function renderAttributes(
     let y = startY;
     const svg = node.attributes
         .map(attr => {
-            const result = Text({
+            const text = Text({
                 x: 16,
                 y,
                 fontSize: Theme.font.size.normal,
@@ -134,7 +138,7 @@ function renderAttributes(
                     renderTypeSpans(attr.type ?? '?'),
             });
             y += lineHeight;
-            return result;
+            return navGroup(node.fileUri, attr.definedAtLine, text);
         })
         .join('');
     return { svg, endY: y };
@@ -179,7 +183,7 @@ function renderMethodRows(
                     ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
                     : '';
 
-                const result = Text({
+                const text = Text({
                     x: 16, y, fontSize: Theme.font.size.normal,
                     children:
                         TSpan({ fill: methodColor, children: method.name }) +
@@ -189,7 +193,7 @@ function renderMethodRows(
                         returnSvg,
                 });
                 y += lineHeight;
-                return result;
+                return navGroup(node.fileUri, method.definedAtLine, text);
             }
 
             const lines: string[] = [];
@@ -224,7 +228,7 @@ function renderMethodRows(
             }));
             y += lineHeight;
 
-            return lines.join('');
+            return navGroup(node.fileUri, method.definedAtLine, lines.join(''));
         })
         .join('');
 
@@ -273,7 +277,7 @@ export function renderClassBox(
         stroke: 'none',
     });
 
-    const title = Text({
+    const title = navGroup(node.fileUri, node.definedAtLine, Text({
         x: width / 2,
         y: 22,
         textAnchor: 'middle',
@@ -281,7 +285,7 @@ export function renderClassBox(
         fontWeight: Theme.font.weight.bold,
         fill: Theme.colors.headerText,
         children: node.name,
-    });
+    }));
 
     const clipId = `clip-${node.name.replace(/\W/g, '_')}`;
     const clipDef =

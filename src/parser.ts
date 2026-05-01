@@ -94,7 +94,14 @@ function extractClassFromSymbol(
         }
     }
 
-    return { name: sym.name, bases, attributes, methods };
+    return {
+        name: sym.name,
+        bases,
+        attributes,
+        methods,
+        definedAtLine: sym.range.start.line,
+        fileUri: document.uri.toString(),
+    };
 }
 
 /* =========================================================

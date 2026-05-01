@@ -22,6 +22,8 @@ export interface ClassNode {
     bases: string[];
     attributes: AttrDef[];
     methods: MethodDef[];
+    definedAtLine: number;
+    fileUri: string;
 }
 
 /* =========================================================

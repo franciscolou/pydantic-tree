@@ -151,9 +151,9 @@ export function renderClassTreeSVG(
                     id: 'viewport',
                     transform: `translate(${UI.tree.initialTranslate.x}, ${UI.tree.initialTranslate.y}) scale(1)`,
                     children: edgesSvg + boxesSvg,
-                }) +
-                renderViewportScript(),
-        })
+                }),
+        }) +
+        renderViewportScript()
     );
 }
 
@@ -168,6 +168,8 @@ function renderViewportScript(): string {
   const viewport = document.getElementById("viewport");
 
   let isPanning = false;
+  let pointerDownTarget = null;
+  let pointerMoved = false;
   let lastX = 0;
   let lastY = 0;
 
@@ -179,6 +181,9 @@ function renderViewportScript(): string {
   const MIN_SCALE = ${UI.zoom.min};
   const MAX_SCALE = ${UI.zoom.max};
   const ZOOM_STEP = ${UI.zoom.step};
+  const CLICK_THRESHOLD = 4;
+
+  const vscode = acquireVsCodeApi();
 
   function update() {
     viewport.setAttribute(
@@ -193,6 +198,8 @@ function renderViewportScript(): string {
   svg.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
     isPanning = true;
+    pointerDownTarget = e.target;
+    pointerMoved = false;
     lastX = e.clientX;
     lastY = e.clientY;
     svg.setPointerCapture(e.pointerId);
@@ -201,15 +208,30 @@ function renderViewportScript(): string {
 
   svg.addEventListener("pointermove", e => {
     if (!isPanning) return;
-    tx += (e.clientX - lastX) * PAN_SENSITIVITY;
-    ty += (e.clientY - lastY) * PAN_SENSITIVITY;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    if (Math.abs(dx) > CLICK_THRESHOLD || Math.abs(dy) > CLICK_THRESHOLD) pointerMoved = true;
+    tx += dx * PAN_SENSITIVITY;
+    ty += dy * PAN_SENSITIVITY;
     lastX = e.clientX;
     lastY = e.clientY;
     update();
   });
 
   function endPan(e) {
+    if (!pointerMoved && pointerDownTarget) {
+      const navTarget = pointerDownTarget.closest("[data-line]");
+      if (navTarget) {
+        vscode.postMessage({
+          command: "navigate",
+          fileUri: navTarget.dataset.file,
+          line: parseInt(navTarget.dataset.line, 10),
+        });
+      }
+    }
     isPanning = false;
+    pointerMoved = false;
+    pointerDownTarget = null;
     svg.style.cursor = "grab";
     try { svg.releasePointerCapture(e.pointerId); } catch {}
   }

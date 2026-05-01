@@ -100,4 +100,14 @@ function openClassTreeWebview(
         { enableScripts: true }
     );
     panel.webview.html = renderClassTreeSVG(focus, ancestors, descendants);
+
+    panel.webview.onDidReceiveMessage(msg => {
+        if (msg.command !== 'navigate') return;
+        const uri = vscode.Uri.parse(msg.fileUri);
+        const pos = new vscode.Position(msg.line, 0);
+        vscode.window.showTextDocument(uri, {
+            selection: new vscode.Range(pos, pos),
+            preserveFocus: false,
+        });
+    });
 }
