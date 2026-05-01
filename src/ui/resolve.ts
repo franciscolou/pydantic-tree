@@ -76,7 +76,7 @@ export function collectDescendants(
     const layers: string[][] = [];
     const visited = new Set<string>();
 
-    let currentLevel = [className];
+    let currentLevelSet = new Set([className]);
 
     while (true) {
         const nextLevel: string[] = [];
@@ -84,7 +84,7 @@ export function collectDescendants(
         for (const [name, node] of classes.entries()) {
             if (visited.has(name)) continue;
 
-            if (node.bases?.some(base => currentLevel.includes(base))) {
+            if (node.bases?.some(base => currentLevelSet.has(base))) {
                 visited.add(name);
                 nextLevel.push(name);
             }
@@ -93,7 +93,7 @@ export function collectDescendants(
         if (!nextLevel.length) break;
 
         layers.push(nextLevel);
-        currentLevel = nextLevel;
+        currentLevelSet = new Set(nextLevel);
     }
 
     return layers;

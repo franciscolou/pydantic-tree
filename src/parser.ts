@@ -136,7 +136,7 @@ export async function extractClasses(
  * all descendants present in the current document — following base class
  * definitions across files when needed.
  */
-export async function buildAncestorMap(
+export async function buildInheritanceMap(
     focusClass: string,
     document: vscode.TextDocument
 ): Promise<Map<string, ClassNode>> {

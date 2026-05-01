@@ -4,10 +4,10 @@ export interface GroupProps {
     children: string;
 }
 
-export function Group({ transform, children }: GroupProps): string {
+export function Group({ id, transform, children }: GroupProps): string {
     return `
 <g
-  id="viewport"
+  ${id ? `id="${id}"` : ''}
   ${transform ? `transform="${transform}"` : ''}
 >
 ${children}

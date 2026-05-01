@@ -1,46 +1,12 @@
-import type { ClassNode, RenderedBox, BoxMeasures } from '../types';
+import type { ClassNode, BoxMeasures } from '../types';
 import { Theme, UI } from '../config';
-import {
-    ClassBox,
-    Line,
-    Svg,
-    Group,
-    Text,
-    TSpan,
-    HtmlRoot,
-} from './components';
+import { Svg, Group, HtmlRoot } from './components';
+import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
+import { renderAncestorEdges, renderDescendantEdges } from './edges';
+
 /* =========================================================
    HELPERS
 ========================================================= */
-
-function bottomAnchor(y: number, boxHeight: number): number {
-    return y + boxHeight;
-}
-
-function topAnchor(y: number): number {
-    return y;
-}
-
-function collectInheritedNames(
-    node: ClassNode,
-    allNodes: Map<string, ClassNode>
-): { attrs: Set<string>; methods: Set<string> } {
-    const attrs = new Set<string>();
-    const methods = new Set<string>();
-    const visited = new Set<string>();
-    const stack = [...node.bases];
-    while (stack.length) {
-        const name = stack.pop()!;
-        if (visited.has(name)) continue;
-        visited.add(name);
-        const base = allNodes.get(name);
-        if (!base) continue;
-        for (const a of base.attributes) attrs.add(a.name);
-        for (const m of base.methods) methods.add(m.name);
-        stack.push(...base.bases);
-    }
-    return { attrs, methods };
-}
 
 function centerOutSort<T>(items: T[], priorities: number[]): T[] {
     if (items.length <= 1) return [...items];
@@ -57,260 +23,67 @@ function centerOutSort<T>(items: T[], priorities: number[]): T[] {
     return result;
 }
 
-/* =========================================================
-   TYPE SPAN RENDERING
-========================================================= */
-
-function renderTypeSpans(typeStr: string): string {
-    // Split on quoted string literals and square brackets, preserving the delimiters
-    const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]])/);
-    return tokens
-        .map(token => {
-            if (!token) return '';
-            if ((token.startsWith("'") && token.endsWith("'")) ||
-                (token.startsWith('"') && token.endsWith('"'))) {
-                return TSpan({ fill: Theme.colors.string, children: token });
+function computeAncestorChainDepths(layers: ClassNode[][]): number[][] {
+    const depths: number[][] = new Array(layers.length);
+    for (let i = layers.length - 1; i >= 0; i--) {
+        depths[i] = layers[i].map(node => {
+            let maxDepth = 0;
+            for (let j = i + 1; j < layers.length; j++) {
+                layers[j].forEach((ancestor, k) => {
+                    if ((node.bases ?? []).includes(ancestor.name)) {
+                        maxDepth = Math.max(maxDepth, depths[j][k] + 1);
+                    }
+                });
             }
-            if (token === '[' || token === ']') {
-                return TSpan({ fill: Theme.colors.text, children: token });
-            }
-            return TSpan({ fill: Theme.colors.type, children: token });
-        })
-        .join('');
+            return maxDepth;
+        });
+    }
+    return depths;
 }
 
-/* =========================================================
-   CLASS BOX RENDERING
-========================================================= */
-
-function renderClassBoxSVG(
-    node: ClassNode,
-    x: number,
-    y: number,
-    inherited: { attrs: Set<string>; methods: Set<string> }
-): RenderedBox {
-    const {
-        lineHeight,
-        headerHeight,
-        padding,
-        sectionGap,
-        sidePadding,
-        minWidth,
-        maxWidth,
-        charWidth,
-        borderRadius,
-    } = UI.box;
-
-    /* =====================================================
-     METHOD LAYOUT (wrap vs single-line)
-  ===================================================== */
-
-    const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
-    const indentStr = '    ';
-    const indentPx  = indentStr.length * charWidth;
-
-    interface MethodLayout { wrapped: boolean; measureLines: string[]; }
-
-    const methodLayouts: MethodLayout[] = node.methods.map(m => {
-        const singleLine =
-            `${m.name}(${m.params.map(p => `${p.name}${p.type ? `: ${p.type}` : ''}`).join(', ')})` +
-            `${m.returnType ? ` -> ${m.returnType}` : ''}`;
-        if (singleLine.length <= wrapAt) return { wrapped: false, measureLines: [singleLine] };
-        return {
-            wrapped: true,
-            measureLines: [
-                `${m.name}(`,
-                ...m.params.map(p => `${indentStr}${p.name}${p.type ? `: ${p.type}` : ''},`),
-                `) -> ${m.returnType ?? ''}`,
-            ],
-        };
-    });
-
-    /* =====================================================
-     WIDTH CALCULATION
-  ===================================================== */
-
-    const attrTexts   = node.attributes.map(a => `${a.name}: ${a.type ?? '?'}`);
-    const methodTexts = methodLayouts.flatMap(ml => ml.measureLines);
-
-    const longestLineLength = Math.max(
-        node.name.length,
-        ...attrTexts.map(t => t.length),
-        ...methodTexts.map(t => t.length),
-        10
-    );
-
-    const width = Math.min(
-        maxWidth,
-        Math.max(minWidth, longestLineLength * charWidth + sidePadding)
-    );
-
-    /* =====================================================
-     CONTENT RENDERING
-  ===================================================== */
-
-    let yCursor = headerHeight + padding;
-
-    const attributesSVG = node.attributes
-        .map(attr => {
-            const result = Text({
-                x: 16,
-                y: yCursor,
-                fontSize: Theme.font.size.normal,
-                children:
-                    TSpan({
-                        fill: inherited.attrs.has(attr.name) ? Theme.colors.override : Theme.colors.attribute,
-                        children: attr.name,
-                    }) +
-                    TSpan({ fill: Theme.colors.text, children: ': ' }) +
-                    renderTypeSpans(attr.type ?? '?'),
-            });
-
-            yCursor += lineHeight;
-            return result;
-        })
-        .join('');
-
-    let dividerSVG = '';
-
-    if (node.attributes.length && node.methods.length) {
-        const dividerY = yCursor + sectionGap / 2;
-
-        dividerSVG = Line({
-            x1: 12,
-            y1: dividerY,
-            x2: width - 12,
-            y2: dividerY,
-            stroke: Theme.colors.border,
+function computeDescendantChainDepths(layers: ClassNode[][]): number[][] {
+    const depths: number[][] = new Array(layers.length);
+    for (let i = layers.length - 1; i >= 0; i--) {
+        depths[i] = layers[i].map(node => {
+            if (i === layers.length - 1) return 0;
+            const childDepths = layers[i + 1]
+                .map((child, k) => ({ depth: depths[i + 1][k], isChild: (child.bases ?? []).includes(node.name) }))
+                .filter(entry => entry.isChild)
+                .map(entry => entry.depth);
+            return childDepths.length > 0 ? 1 + Math.max(...childDepths) : 0;
         });
-
-        yCursor = dividerY + UI.box.methodTopPadding;
     }
+    return depths;
+}
 
-    const methodsSVG = node.methods
-        .map((method, i) => {
-            const methodColor = inherited.methods.has(method.name)
-                ? Theme.colors.override
-                : Theme.colors.method;
+function measureLayerMaxHeight(layer: ClassNode[], allNodes: Map<string, ClassNode>): number {
+    return Math.max(...layer.map(node => measureClassBox(node, collectInheritedNames(node, allNodes)).height));
+}
 
-            if (!methodLayouts[i].wrapped) {
-                const paramsSVG = method.params
-                    .map(p =>
-                        TSpan({ fill: Theme.colors.attribute, children: p.name }) +
-                        (p.type
-                            ? TSpan({ fill: Theme.colors.text, children: ': ' }) + renderTypeSpans(p.type)
-                            : '')
-                    )
-                    .join(TSpan({ fill: Theme.colors.text, children: ', ' }));
+function positionLayer(
+    layer: ClassNode[],
+    topY: number,
+    allNodes: Map<string, ClassNode>,
+    horizontalGap: number
+): { svgs: string[]; positions: BoxMeasures[] } {
+    const inherited = layer.map(node => collectInheritedNames(node, allNodes));
+    const sizes = layer.map((node, i) => measureClassBox(node, inherited[i]));
 
-                const returnSVG = method.returnType
-                    ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
-                    : '';
+    const totalWidth = sizes.reduce((sum, s) => sum + s.width, 0) + (layer.length - 1) * horizontalGap;
+    let xCursor = -totalWidth / 2;
 
-                const result = Text({
-                    x: 16, y: yCursor, fontSize: Theme.font.size.normal,
-                    children:
-                        TSpan({ fill: methodColor, children: method.name }) +
-                        TSpan({ fill: Theme.colors.text, children: '(' }) +
-                        paramsSVG +
-                        TSpan({ fill: Theme.colors.text, children: ')' }) +
-                        returnSVG,
-                });
-                yCursor += lineHeight;
-                return result;
-            }
+    const svgs: string[] = [];
+    const positions: BoxMeasures[] = [];
 
-            // Wrapped: name( / indented params / ) → ReturnType
-            const lines: string[] = [];
-
-            lines.push(Text({
-                x: 16, y: yCursor, fontSize: Theme.font.size.normal,
-                children:
-                    TSpan({ fill: methodColor, children: method.name }) +
-                    TSpan({ fill: Theme.colors.text, children: '(' }),
-            }));
-            yCursor += lineHeight;
-
-            for (const p of method.params) {
-                lines.push(Text({
-                    x: 16 + indentPx, y: yCursor, fontSize: Theme.font.size.normal,
-                    children:
-                        TSpan({ fill: Theme.colors.attribute, children: p.name }) +
-                        (p.type
-                            ? TSpan({ fill: Theme.colors.text, children: ': ' }) + renderTypeSpans(p.type)
-                            : '') +
-                        TSpan({ fill: Theme.colors.text, children: ',' }),
-                }));
-                yCursor += lineHeight;
-            }
-
-            lines.push(Text({
-                x: 16, y: yCursor, fontSize: Theme.font.size.normal,
-                children:
-                    TSpan({ fill: Theme.colors.text, children: ')' }) +
-                    (method.returnType
-                        ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
-                        : ''),
-            }));
-            yCursor += lineHeight;
-
-            return lines.join('');
-        })
-        .join('');
-
-    const height = yCursor + padding;
-
-    /* =====================================================
-     STRUCTURE
-  ===================================================== */
-
-    const panel = ClassBox({
-        x: 0,
-        y: 0,
-        width,
-        height,
-        borderRadius,
-        fill: Theme.colors.panelBackground,
-        stroke: Theme.colors.border,
+    layer.forEach((node, i) => {
+        const x = xCursor + sizes[i].width / 2;
+        const rendered = renderClassBox(node, x, topY, inherited[i]);
+        svgs.push(rendered.svg);
+        positions.push({ x, y: topY, width: sizes[i].width, height: sizes[i].height });
+        xCursor += sizes[i].width + horizontalGap;
     });
 
-    const header = ClassBox({
-        x: 0,
-        y: 0,
-        width,
-        height: headerHeight,
-        fill: Theme.colors.headerBackground,
-        stroke: 'none',
-    });
-
-    const title = Text({
-        x: width / 2,
-        y: 22,
-        textAnchor: 'middle',
-        fontSize: Theme.font.size.header,
-        fontWeight: Theme.font.weight.bold,
-        fill: Theme.colors.headerText,
-        children: node.name,
-    });
-
-    const clipId = `clip-${node.name.replace(/\W/g, '_')}`;
-    const clipDef =
-        `<defs><clipPath id="${clipId}">` +
-        `<rect x="0" y="${headerHeight}" width="${width}" height="${height - headerHeight}"/>` +
-        `</clipPath></defs>`;
-    const clippedContent =
-        `<g clip-path="url(#${clipId})">${attributesSVG}${dividerSVG}${methodsSVG}</g>`;
-
-    const group = Group({
-        transform: `translate(${x - width / 2}, ${y})`,
-        children: clipDef + panel + header + title + clippedContent,
-    });
-
-    return {
-        svg: group,
-        width,
-        height,
-    };
+    return { svgs, positions };
 }
 
 /* =========================================================
@@ -322,260 +95,50 @@ export function renderClassTreeSVG(
     ancestorLayers: ClassNode[][],
     descendantLayers: ClassNode[][]
 ): string {
-    const verticalGap = UI.tree.verticalGap;
-    const horizontalGap = UI.tree.horizontalGap ?? 120;
+    const { verticalGap, horizontalGap } = UI.tree;
 
     const allNodes = new Map<string, ClassNode>();
     allNodes.set(focus.name, focus);
-    for (const layer of ancestorLayers) for (const n of layer) allNodes.set(n.name, n);
-    for (const layer of descendantLayers) for (const n of layer) allNodes.set(n.name, n);
+    for (const layer of ancestorLayers) for (const node of layer) allNodes.set(node.name, node);
+    for (const layer of descendantLayers) for (const node of layer) allNodes.set(node.name, node);
 
-    let boxes = '';
-    let edges = '';
+    // Focus box at origin
+    const focusRendered = renderClassBox(focus, 0, 0, collectInheritedNames(focus, allNodes));
 
-    const focusRendered = renderClassBoxSVG(focus, 0, 0, collectInheritedNames(focus, allNodes));
-    boxes += focusRendered.svg;
+    // Order layers so nodes with deeper chains land in the center
+    const ancestorDepths = computeAncestorChainDepths(ancestorLayers);
+    const orderedAncestorLayers = ancestorLayers.map((layer, i) => centerOutSort(layer, ancestorDepths[i]));
 
-    function renderLayer(layer: ClassNode[], centerY: number) {
-        const inheritedPerNode = layer.map(n => collectInheritedNames(n, allNodes));
-        const pre = layer.map((n, i) => renderClassBoxSVG(n, 0, 0, inheritedPerNode[i]));
+    const descendantDepths = computeDescendantChainDepths(descendantLayers);
+    const orderedDescendantLayers = descendantLayers.map((layer, i) => centerOutSort(layer, descendantDepths[i]));
 
-        const totalWidth =
-            pre.reduce((s, r) => s + r.width, 0) +
-            (layer.length - 1) * horizontalGap;
-
-        let xCursor = -totalWidth / 2;
-
-        const positioned: BoxMeasures[] = [];
-
-        layer.forEach((node, i) => {
-            const x = xCursor + pre[i].width / 2;
-            const y = centerY;
-
-            const rendered = renderClassBoxSVG(node, x, y, inheritedPerNode[i]);
-            boxes += rendered.svg;
-
-            positioned.push({
-                x,
-                y,
-                width: rendered.width,
-                height: rendered.height,
-            });
-
-            xCursor += pre[i].width + horizontalGap;
-        });
-
-        return positioned;
-    }
-
-    /* -------------------------
-     LAYER ORDERING
-  ------------------------- */
-
-    // Chain depth for ancestors: how many more layers above each node exist in the tree.
-    // Checks ALL layers above i (not just i+1) to handle non-adjacent inheritance edges that
-    // arise from longest-path layering (e.g. SizedObject at layer 0 whose parent FileSystemObject
-    // is at layer 3 rather than layer 1).
-    const ancestorChainDepths: number[][] = new Array(ancestorLayers.length);
-    for (let i = ancestorLayers.length - 1; i >= 0; i--) {
-        ancestorChainDepths[i] = ancestorLayers[i].map(node => {
-            let maxDepth = 0;
-            for (let j = i + 1; j < ancestorLayers.length; j++) {
-                ancestorLayers[j].forEach((p, k) => {
-                    if ((node.bases ?? []).includes(p.name)) {
-                        maxDepth = Math.max(maxDepth, ancestorChainDepths[j][k] + 1);
-                    }
-                });
-            }
-            return maxDepth;
-        });
-    }
-    const orderedAncestorLayers = ancestorLayers.map((layer, i) =>
-        centerOutSort(layer, ancestorChainDepths[i])
-    );
-
-    // Chain depth for descendants: how many more layers below each node exist in the tree.
-    const descendantChainDepths: number[][] = new Array(descendantLayers.length);
-    for (let i = descendantLayers.length - 1; i >= 0; i--) {
-        descendantChainDepths[i] = descendantLayers[i].map(node => {
-            if (i === descendantLayers.length - 1) return 0;
-            const childDepths = descendantLayers[i + 1]
-                .map((c, j) => ({ d: descendantChainDepths[i + 1][j], match: (c.bases ?? []).includes(node.name) }))
-                .filter(x => x.match)
-                .map(x => x.d);
-            return childDepths.length > 0 ? 1 + Math.max(...childDepths) : 0;
-        });
-    }
-    const orderedDescendantLayers = descendantLayers.map((layer, i) =>
-        centerOutSort(layer, descendantChainDepths[i])
-    );
-
-    /* -------------------------
-     ANCESTORS
-  ------------------------- */
-
+    // Position ancestor layers — measure height first so the gap to the layer below is exact
     let currentY = 0;
-
     const ancestorLayerBoxes: BoxMeasures[][] = [];
+    let boxesSvg = focusRendered.svg;
 
     for (const layer of orderedAncestorLayers) {
-        const inherited = layer.map(n => collectInheritedNames(n, allNodes));
-        const maxH = Math.max(...layer.map((n, j) => renderClassBoxSVG(n, 0, 0, inherited[j]).height));
-        currentY -= verticalGap + maxH;
-        ancestorLayerBoxes.push(renderLayer(layer, currentY));
+        currentY -= verticalGap + measureLayerMaxHeight(layer, allNodes);
+        const { svgs, positions } = positionLayer(layer, currentY, allNodes, horizontalGap);
+        boxesSvg += svgs.join('');
+        ancestorLayerBoxes.push(positions);
     }
 
-    /* -------------------------
-     EDGES ANCESTORS → FOCUS
-  ------------------------- */
-
-    // Layer 0: shared bus — all direct parents connect to the focus via a single bus at x=0
-    if (ancestorLayerBoxes.length > 0) {
-        const layer = ancestorLayerBoxes[0];
-        const layerBottom = Math.max(...layer.map(b => bottomAnchor(b.y, b.height)));
-        const midY = (layerBottom + topAnchor(0)) / 2;
-        const xs = layer.map(b => b.x);
-        edges += Line({ x1: Math.min(...xs, 0), y1: midY, x2: Math.max(...xs, 0), y2: midY, stroke: Theme.colors.edge });
-        layer.forEach(box => {
-            edges += Line({ x1: box.x, y1: bottomAnchor(box.y, box.height), x2: box.x, y2: midY, stroke: Theme.colors.edge });
-        });
-        edges += Line({ x1: 0, y1: midY, x2: 0, y2: topAnchor(0), stroke: Theme.colors.edge });
-    }
-
-    // Layers i > 0: each parent connects to ALL children in any lower layer j < i.
-    // - Adjacent (j = i-1): use a shared bus in the gap just below layer i.
-    // - Non-adjacent (j < i-1): route around the outside of the diagram to avoid
-    //   passing through intermediate boxes, which would create false visual connections.
-    for (let i = 1; i < ancestorLayerBoxes.length; i++) {
-        const parentNodes = orderedAncestorLayers[i];
-        const parentBoxes = ancestorLayerBoxes[i];
-
-        // adjacentBusY: gap between layer i (above) and layer i-1 (below)
-        const adjacentBusY = (
-            Math.max(...ancestorLayerBoxes[i].map(b => bottomAnchor(b.y, b.height))) +
-            Math.min(...ancestorLayerBoxes[i - 1].map(b => b.y))
-        ) / 2;
-
-        parentNodes.forEach((pNode, pIdx) => {
-            const p = parentBoxes[pIdx];
-            let drewVertical = false;
-
-            const drawVerticalIfNeeded = () => {
-                if (!drewVertical) {
-                    drewVertical = true;
-                    edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: adjacentBusY, stroke: Theme.colors.edge });
-                }
-            };
-
-            for (let j = 0; j < i; j++) {
-                const childNodes = orderedAncestorLayers[j];
-                const childBoxes = ancestorLayerBoxes[j];
-
-                const children = childNodes
-                    .map((cNode, ci) => ({ cNode, cBox: childBoxes[ci] }))
-                    .filter(({ cNode }) => (cNode.bases ?? []).includes(pNode.name));
-
-                if (children.length === 0) continue;
-
-                if (j === i - 1) {
-                    // Adjacent: drop straight from the shared bus to the child
-                    drawVerticalIfNeeded();
-                    children.forEach(({ cBox }) => {
-                        edges += Line({ x1: p.x, y1: adjacentBusY, x2: cBox.x, y2: adjacentBusY, stroke: Theme.colors.edge });
-                        edges += Line({ x1: cBox.x, y1: adjacentBusY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
-                    });
-                } else {
-                    // Non-adjacent: route outside all intermediate boxes to avoid crossing them.
-                    // Path: parent → adjacentBusY → sideX → childBusY (alongside the outside) → child
-                    const childBusY = (
-                        Math.max(...ancestorLayerBoxes[j + 1].map(b => bottomAnchor(b.y, b.height))) +
-                        Math.min(...ancestorLayerBoxes[j].map(b => b.y))
-                    ) / 2;
-
-                    // Collect all boxes from layer j to layer i that the route passes near
-                    const nearbyBoxes: BoxMeasures[] = [];
-                    for (let k = j; k <= i; k++) nearbyBoxes.push(...ancestorLayerBoxes[k]);
-
-                    const margin = 40;
-
-                    children.forEach(({ cBox }) => {
-                        const routeRight = cBox.x >= 0;
-                        const sideX = routeRight
-                            ? Math.max(...nearbyBoxes.map(b => b.x + b.width / 2)) + margin
-                            : Math.min(...nearbyBoxes.map(b => b.x - b.width / 2)) - margin;
-
-                        drawVerticalIfNeeded();
-                        // parent's bus → outside column → child's bus → child top
-                        edges += Line({ x1: p.x, y1: adjacentBusY, x2: sideX, y2: adjacentBusY, stroke: Theme.colors.edge });
-                        edges += Line({ x1: sideX, y1: adjacentBusY, x2: sideX, y2: childBusY, stroke: Theme.colors.edge });
-                        edges += Line({ x1: sideX, y1: childBusY, x2: cBox.x, y2: childBusY, stroke: Theme.colors.edge });
-                        edges += Line({ x1: cBox.x, y1: childBusY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
-                    });
-                }
-            }
-        });
-    }
-
-    /* -------------------------
-     DESCENDANTS
-  ------------------------- */
-
-    currentY = bottomAnchor(0, focusRendered.height) + verticalGap;
-
+    // Position descendant layers — start just below the focus box
+    currentY = focusRendered.height + verticalGap;
     const descendantLayerBoxes: BoxMeasures[][] = [];
 
-    orderedDescendantLayers.forEach(layer => {
-        const layerBoxes = renderLayer(layer, currentY);
-
-        const maxHeight = Math.max(...layerBoxes.map(b => b.height));
-        currentY += maxHeight + verticalGap;
-
-        descendantLayerBoxes.push(layerBoxes);
-    });
-
-    /* -------------------------
-     EDGES FOCUS → DESCENDANTS
-  ------------------------- */
-
-    // Layer 0: shared bus — focus connects to all direct children via a single bus at x=0
-    if (descendantLayerBoxes.length > 0) {
-        const layer = descendantLayerBoxes[0];
-        const layerTop = Math.min(...layer.map(b => topAnchor(b.y)));
-        const midY = (bottomAnchor(0, focusRendered.height) + layerTop) / 2;
-        const xs = layer.map(b => b.x);
-        edges += Line({ x1: 0, y1: bottomAnchor(0, focusRendered.height), x2: 0, y2: midY, stroke: Theme.colors.edge });
-        edges += Line({ x1: Math.min(...xs, 0), y1: midY, x2: Math.max(...xs, 0), y2: midY, stroke: Theme.colors.edge });
-        layer.forEach(box => {
-            edges += Line({ x1: box.x, y1: midY, x2: box.x, y2: topAnchor(box.y), stroke: Theme.colors.edge });
-        });
+    for (const layer of orderedDescendantLayers) {
+        const { svgs, positions } = positionLayer(layer, currentY, allNodes, horizontalGap);
+        boxesSvg += svgs.join('');
+        currentY += Math.max(...positions.map(box => box.height)) + verticalGap;
+        descendantLayerBoxes.push(positions);
     }
 
-    // Layers i > 0: each node connects only to its actual children in the layer below
-    for (let i = 1; i < descendantLayerBoxes.length; i++) {
-        const parentLayer = descendantLayerBoxes[i - 1];
-        const childLayer  = descendantLayerBoxes[i];
-        const parentNodes = orderedDescendantLayers[i - 1];
-        const childNodes  = orderedDescendantLayers[i];
-        const midY = (
-            Math.max(...parentLayer.map(b => bottomAnchor(b.y, b.height))) +
-            Math.min(...childLayer.map(b => b.y))
-        ) / 2;
-
-        parentNodes.forEach((pNode, j) => {
-            const p = parentLayer[j];
-            const children = childNodes
-                .map((cNode, k) => ({ cNode, cBox: childLayer[k] }))
-                .filter(({ cNode }) => (cNode.bases ?? []).includes(pNode.name));
-
-            if (children.length === 0) return;
-
-            edges += Line({ x1: p.x, y1: bottomAnchor(p.y, p.height), x2: p.x, y2: midY, stroke: Theme.colors.edge });
-            children.forEach(({ cBox }) => {
-                edges += Line({ x1: p.x, y1: midY, x2: cBox.x, y2: midY, stroke: Theme.colors.edge });
-                edges += Line({ x1: cBox.x, y1: midY, x2: cBox.x, y2: cBox.y, stroke: Theme.colors.edge });
-            });
-        });
-    }
+    // Draw edges
+    const edgesSvg =
+        renderAncestorEdges(orderedAncestorLayers, ancestorLayerBoxes, 0) +
+        renderDescendantEdges(orderedDescendantLayers, descendantLayerBoxes, focusRendered.height);
 
     return HtmlRoot(
         Svg({
@@ -585,9 +148,9 @@ export function renderClassTreeSVG(
             children:
                 `<style>text{font-family:${Theme.font.family};}</style>` +
                 Group({
-                    transform: `translate(${UI.tree.initialTranslate.x},
-                                  ${UI.tree.initialTranslate.y}) scale(1)`,
-                    children: edges + boxes,
+                    id: 'viewport',
+                    transform: `translate(${UI.tree.initialTranslate.x}, ${UI.tree.initialTranslate.y}) scale(1)`,
+                    children: edgesSvg + boxesSvg,
                 }) +
                 renderViewportScript(),
         })
@@ -596,7 +159,7 @@ export function renderClassTreeSVG(
 
 /* =========================================================
    VIEWPORT SCRIPT
-   ========================================================= */
+========================================================= */
 
 function renderViewportScript(): string {
     return `
