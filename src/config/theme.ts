@@ -15,6 +15,7 @@ export const Theme = {
         override: '#c586c0',
 
         edge: '#6a6a6a',
+        edgePalette: ['#7a9fc2', '#89b08a', '#c2a97a', '#a87ec2', '#7ab8b5', '#c28080'] as const,
     },
 
     font: {

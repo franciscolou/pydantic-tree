@@ -1,11 +1,11 @@
 import type { ClassNode, BoxMeasures } from '../types';
 import { Theme, UI } from '../config';
-import { Svg, Group, HtmlRoot, Line } from './components';
+import { Svg, Group, HtmlRoot } from './components';
 import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
 import { renderViewportScript } from './render';
+import { drawConnections, type EdgeConnection } from './edges';
 
 const COMPONENT_GAP = 400;
-const LANE_STEP = 18;
 
 /* =========================================================
    HELPERS
@@ -42,49 +42,6 @@ function sortLayersCenterOut(
    EDGE RENDERING
 ========================================================= */
 
-interface EdgeConnection {
-    parentX: number;
-    parentBottom: number;
-    childX: number;
-    childTop: number;
-}
-
-function assignEdgeLanes(segments: [number, number][], step: number): number[] {
-    const n = segments.length;
-    if (n <= 1) return new Array(n).fill(0);
-    const normalized = segments.map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number]);
-    const laneOrder: number[] = [0];
-    for (let i = 1; i <= n; i++) laneOrder.push(i * step, -(i * step));
-    const laneRanges = new Map<number, [number, number][]>();
-    const result = new Array<number>(n).fill(0);
-    for (let i = 0; i < n; i++) {
-        const [left, right] = normalized[i];
-        for (const offset of laneOrder) {
-            const occupied = laneRanges.get(offset) ?? [];
-            if (!occupied.some(([ol, or_]) => left < or_ && right > ol)) {
-                result[i] = offset;
-                if (!laneRanges.has(offset)) laneRanges.set(offset, []);
-                laneRanges.get(offset)!.push([left, right]);
-                break;
-            }
-        }
-    }
-    return result;
-}
-
-function drawConnections(connections: EdgeConnection[], busY: number): string {
-    if (connections.length === 0) return '';
-    const laneOffsets = assignEdgeLanes(connections.map(c => [c.parentX, c.childX]), LANE_STEP);
-    let svg = '';
-    connections.forEach(({ parentX, parentBottom, childX, childTop }, i) => {
-        const edgeY = busY + laneOffsets[i];
-        svg += Line({ x1: parentX, y1: parentBottom, x2: parentX, y2: edgeY, stroke: Theme.colors.edge });
-        svg += Line({ x1: parentX, y1: edgeY, x2: childX, y2: edgeY, stroke: Theme.colors.edge });
-        svg += Line({ x1: childX, y1: edgeY, x2: childX, y2: childTop, stroke: Theme.colors.edge });
-    });
-    return svg;
-}
-
 function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]): string {
     let edges = '';
     for (let i = 0; i < layers.length - 1; i++) {
@@ -111,7 +68,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
                 }
             });
         });
-        edges += drawConnections(connections, busY);
+        edges += drawConnections(connections, busY, Theme.colors.edgePalette);
     }
     return edges;
 }

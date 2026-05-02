@@ -8,7 +8,7 @@ const LANE_STEP = 18;
    EDGE LANE ASSIGNMENT
 ========================================================= */
 
-interface EdgeConnection {
+export interface EdgeConnection {
     parentX: number;
     parentBottom: number;
     childX: number;
@@ -49,17 +49,85 @@ function assignEdgeLanes(segments: [number, number][], step: number): number[] {
     return result;
 }
 
-// Draws each connection as three segments (vertical → horizontal → vertical),
-// with lane-assigned Y so crossing connections don't overlap.
-function drawConnections(connections: EdgeConnection[], busY: number): string {
+/* =========================================================
+   INTERSECTION DETECTION
+========================================================= */
+
+// Returns true if a horizontal segment (at y=hy, from hx1 to hx2) strictly
+// crosses a vertical segment (at x=vx, from vy1 to vy2) in the interior.
+function hVIntersect(
+    hy: number, hx1: number, hx2: number,
+    vx: number, vy1: number, vy2: number
+): boolean {
+    const minHX = Math.min(hx1, hx2), maxHX = Math.max(hx1, hx2);
+    const minVY = Math.min(vy1, vy2), maxVY = Math.max(vy1, vy2);
+    return minHX < vx && vx < maxHX && minVY < hy && hy < maxVY;
+}
+
+// Returns true if two Y-ranges strictly overlap (share more than an endpoint).
+function rangesOverlap(a1: number, a2: number, b1: number, b2: number): boolean {
+    const minA = Math.min(a1, a2), maxA = Math.max(a1, a2);
+    const minB = Math.min(b1, b2), maxB = Math.max(b1, b2);
+    return minA < maxB && minB < maxA;
+}
+
+// Two connections collide if any of their 3-segment paths cross geometrically.
+// Checks H vs V crossings and V vs V overlaps (same-parent or same-child).
+function connectionsIntersect(
+    ci: EdgeConnection, eyi: number,
+    cj: EdgeConnection, eyj: number
+): boolean {
+    // H_i vs parent-vertical_j and child-vertical_j
+    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.parentX, cj.parentBottom, eyj)) return true;
+    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.childX, eyj, cj.childTop)) return true;
+    // H_j vs parent-vertical_i and child-vertical_i
+    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.parentX, ci.parentBottom, eyi)) return true;
+    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.childX, eyi, ci.childTop)) return true;
+    // Same parent → parent verticals overlap on the same X
+    if (ci.parentX === cj.parentX && rangesOverlap(ci.parentBottom, eyi, cj.parentBottom, eyj)) return true;
+    // Same child → child verticals overlap on the same X
+    if (ci.childX === cj.childX && rangesOverlap(eyi, ci.childTop, eyj, cj.childTop)) return true;
+    return false;
+}
+
+/* =========================================================
+   CONNECTION DRAWING
+========================================================= */
+
+// Draws each connection as three segments (vertical → horizontal → vertical).
+// Colors are assigned via greedy graph coloring on the geometric intersection graph,
+// guaranteeing that no two visually crossing connections share a color.
+export function drawConnections(
+    connections: EdgeConnection[],
+    busY: number,
+    palette: readonly string[]
+): string {
     if (connections.length === 0) return '';
+
+    const n = connections.length;
     const laneOffsets = assignEdgeLanes(connections.map(c => [c.parentX, c.childX]), LANE_STEP);
+    const edgeYs = laneOffsets.map(lo => busY + lo);
+
+    const colorIndices = new Array<number>(n).fill(0);
+    for (let i = 0; i < n; i++) {
+        const used = new Set<number>();
+        for (let j = 0; j < i; j++) {
+            if (connectionsIntersect(connections[i], edgeYs[i], connections[j], edgeYs[j])) {
+                used.add(colorIndices[j]);
+            }
+        }
+        let c = 0;
+        while (used.has(c)) c++;
+        colorIndices[i] = c;
+    }
+
     let svg = '';
     connections.forEach(({ parentX, parentBottom, childX, childTop }, i) => {
-        const edgeY = busY + laneOffsets[i];
-        svg += Line({ x1: parentX, y1: parentBottom, x2: parentX, y2: edgeY, stroke: Theme.colors.edge });
-        svg += Line({ x1: parentX, y1: edgeY, x2: childX, y2: edgeY, stroke: Theme.colors.edge });
-        svg += Line({ x1: childX, y1: edgeY, x2: childX, y2: childTop, stroke: Theme.colors.edge });
+        const edgeY = edgeYs[i];
+        const color = palette[colorIndices[i] % palette.length];
+        svg += Line({ x1: parentX, y1: parentBottom, x2: parentX, y2: edgeY, stroke: color });
+        svg += Line({ x1: parentX, y1: edgeY, x2: childX, y2: edgeY, stroke: color });
+        svg += Line({ x1: childX, y1: edgeY, x2: childX, y2: childTop, stroke: color });
     });
     return svg;
 }
@@ -115,7 +183,7 @@ export function renderAncestorEdges(
                 }
             });
         });
-        edges += drawConnections(adjacentConnections, busY);
+        edges += drawConnections(adjacentConnections, busY, Theme.colors.edgePalette);
 
         // Non-adjacent connections (j < i-1): route outside intermediate boxes.
         parentNodes.forEach((parentNode, parentIdx) => {
@@ -219,7 +287,7 @@ export function renderDescendantEdges(
             });
         });
 
-        edges += drawConnections(connections, busY);
+        edges += drawConnections(connections, busY, Theme.colors.edgePalette);
     }
 
     return edges;
