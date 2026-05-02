@@ -1,5 +1,87 @@
 import type { ClassNode } from '../types';
 
+export function buildConnectedComponents(classes: Map<string, ClassNode>): ClassNode[][] {
+    const parent = new Map<string, string>();
+    for (const name of classes.keys()) parent.set(name, name);
+
+    const find = (x: string): string => {
+        while (parent.get(x) !== x) {
+            parent.set(x, parent.get(parent.get(x)!)!);
+            x = parent.get(x)!;
+        }
+        return x;
+    };
+
+    for (const [name, node] of classes.entries()) {
+        for (const base of node.bases) {
+            if (classes.has(base)) {
+                const rx = find(name), ry = find(base);
+                if (rx !== ry) parent.set(rx, ry);
+            }
+        }
+    }
+
+    const groups = new Map<string, ClassNode[]>();
+    for (const [name, node] of classes.entries()) {
+        const root = find(name);
+        if (!groups.has(root)) groups.set(root, []);
+        groups.get(root)!.push(node);
+    }
+
+    return [...groups.values()].sort((a, b) => b.length - a.length);
+}
+
+export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
+    const nameSet = new Set(component.map(n => n.name));
+
+    const inDeg = new Map<string, number>();
+    const children = new Map<string, string[]>();
+    for (const node of component) {
+        inDeg.set(node.name, node.bases.filter(b => nameSet.has(b)).length);
+        for (const base of node.bases) {
+            if (nameSet.has(base)) {
+                if (!children.has(base)) children.set(base, []);
+                children.get(base)!.push(node.name);
+            }
+        }
+    }
+
+    const dist = new Map<string, number>();
+    for (const node of component) dist.set(node.name, 0);
+
+    const queue: string[] = [];
+    for (const [name, deg] of inDeg) {
+        if (deg === 0) queue.push(name);
+    }
+
+    while (queue.length > 0) {
+        const curr = queue.shift()!;
+        const d = dist.get(curr)!;
+        for (const child of (children.get(curr) ?? [])) {
+            if (d + 1 > (dist.get(child) ?? 0)) dist.set(child, d + 1);
+            inDeg.set(child, inDeg.get(child)! - 1);
+            if (inDeg.get(child) === 0) queue.push(child);
+        }
+    }
+
+    const layerMap = new Map<number, ClassNode[]>();
+    const nodeByName = new Map(component.map(n => [n.name, n]));
+    for (const name of dist.keys()) {
+        const d = dist.get(name)!;
+        if (!layerMap.has(d)) layerMap.set(d, []);
+        layerMap.get(d)!.push(nodeByName.get(name)!);
+    }
+
+    const maxDist = dist.size > 0 ? Math.max(...dist.values()) : 0;
+    const layers: ClassNode[][] = [];
+    for (let d = 0; d <= maxDist; d++) {
+        const layer = layerMap.get(d);
+        if (layer?.length) layers.push(layer);
+    }
+    return layers;
+}
+
+
 export function collectAncestors(
     className: string,
     classes: Map<string, ClassNode>

@@ -160,7 +160,8 @@ export function renderClassTreeSVG(
    VIEWPORT SCRIPT
 ========================================================= */
 
-function renderViewportScript(): string {
+export function renderViewportScript(opts: { initialScale?: number } = {}): string {
+    const initialScale = opts.initialScale ?? 1;
     return `
 <script>
   const svg = document.getElementById("svgRoot");
@@ -174,7 +175,7 @@ function renderViewportScript(): string {
 
   let tx = window.innerWidth / 2;
   let ty = window.innerHeight / 2;
-  let scale = 1;
+  let scale = ${initialScale};
 
   const PAN_SENSITIVITY = ${UI.pan.sensitivity};
   const MIN_SCALE = ${UI.zoom.min};

@@ -18,6 +18,10 @@
             {
                 "command": "pydanticTree.showClass",
                 "title": "Pydantic: Visualizar classe"
+            },
+            {
+                "command": "pydanticTree.showProjectTree",
+                "title": "Pydantic: Árvore do Projeto"
             }
         ]
     },

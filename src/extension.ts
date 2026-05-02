@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 import { extractClasses, buildInheritanceMap } from './parser';
 import { ClassNode } from './types';
 import { renderClassTreeSVG } from './ui/render';
-import { collectAncestors, collectDescendants } from './ui/resolve';
+import { collectAncestors, collectDescendants, buildConnectedComponents, buildComponentLayers } from './ui/resolve';
+import { renderForestSVG } from './ui/renderForest';
+import { scanWorkspaceClasses } from './projectScanner';
 import { renderClassMarkdown } from './ui/hover';
 import { Messages } from './config';
 
@@ -13,7 +15,8 @@ import { Messages } from './config';
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         registerHoverProvider(),
-        registerShowClassCommand()
+        registerShowClassCommand(),
+        registerShowProjectTreeCommand()
     );
 }
 
@@ -37,8 +40,12 @@ function registerShowClassCommand(): vscode.Disposable {
     return vscode.commands.registerCommand('pydanticTree.showClass', showClassTree);
 }
 
+function registerShowProjectTreeCommand(): vscode.Disposable {
+    return vscode.commands.registerCommand('pydanticTree.showProjectTree', showProjectTree);
+}
+
 /* =========================================================
-   COMMAND HANDLER
+   COMMAND HANDLERS
 ========================================================= */
 
 async function showClassTree() {
@@ -57,7 +64,40 @@ async function showClassTree() {
     const ancestors = resolveLayeredNodes(collectAncestors(focusNode.name, classes), classes);
     const descendants = resolveLayeredNodes(collectDescendants(focusNode.name, classes), classes);
 
-    openClassTreeWebview(focusNode, ancestors, descendants);
+    openWebview(
+        'pydanticClassTree',
+        Messages.titles.classTree(focusNode.name),
+        renderClassTreeSVG(focusNode, ancestors, descendants)
+    );
+}
+
+async function showProjectTree() {
+    let allClasses = new Map<string, ClassNode>();
+
+    await vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: Messages.titles.scanningFiles,
+            cancellable: false,
+        },
+        async progress => {
+            allClasses = await scanWorkspaceClasses(progress);
+        }
+    );
+
+    if (!allClasses.size) {
+        vscode.window.showInformationMessage(Messages.noClassesFound);
+        return;
+    }
+
+    const components = buildConnectedComponents(allClasses);
+    const componentLayers = components.map(comp => buildComponentLayers(comp));
+
+    openWebview(
+        'pydanticProjectTree',
+        Messages.titles.projectTree,
+        renderForestSVG(componentLayers, allClasses)
+    );
 }
 
 /* =========================================================
@@ -88,18 +128,14 @@ function resolveLayeredNodes(
    WEBVIEW
 ========================================================= */
 
-function openClassTreeWebview(
-    focus: ClassNode,
-    ancestors: ClassNode[][],
-    descendants: ClassNode[][]
-) {
+function openWebview(viewType: string, title: string, html: string) {
     const panel = vscode.window.createWebviewPanel(
-        'pydanticClassTree',
-        Messages.titles.classTree(focus.name),
+        viewType,
+        title,
         vscode.ViewColumn.Beside,
         { enableScripts: true }
     );
-    panel.webview.html = renderClassTreeSVG(focus, ancestors, descendants);
+    panel.webview.html = html;
 
     panel.webview.onDidReceiveMessage(msg => {
         if (msg.command !== 'navigate') return;
