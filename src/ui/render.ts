@@ -143,13 +143,12 @@ export function renderClassTreeSVG(
     return HtmlRoot(
         Svg({
             width: '100%',
-            height: '100%',
-            viewBox: '0 0 2000 2000',
+            height: '100vh',
             children:
-                `<style>text{font-family:${Theme.font.family};}</style>` +
+                `<style>text{font-family:${Theme.font.family};}body,svg{background:${Theme.colors.background};}</style>` +
                 Group({
                     id: 'viewport',
-                    transform: `translate(${UI.tree.initialTranslate.x}, ${UI.tree.initialTranslate.y}) scale(1)`,
+                    transform: 'translate(0,0) scale(1)',
                     children: edgesSvg + boxesSvg,
                 }),
         }) +
@@ -173,8 +172,8 @@ function renderViewportScript(): string {
   let lastX = 0;
   let lastY = 0;
 
-  let tx = ${UI.tree.initialTranslate.x};
-  let ty = ${UI.tree.initialTranslate.y};
+  let tx = window.innerWidth / 2;
+  let ty = window.innerHeight / 2;
   let scale = 1;
 
   const PAN_SENSITIVITY = ${UI.pan.sensitivity};
