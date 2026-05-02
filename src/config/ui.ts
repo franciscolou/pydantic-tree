@@ -28,6 +28,6 @@ export const UI = {
     },
 
     pan: {
-        sensitivity: 1.6,
+        sensitivity: 0.9,
     },
 } as const;
