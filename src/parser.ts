@@ -88,9 +88,13 @@ function extractClassFromSymbol(
                 break;
             case vscode.SymbolKind.Variable:
             case vscode.SymbolKind.Property:
-            case vscode.SymbolKind.Field:
-                attributes.push(extractAttribute(child, document));
+            case vscode.SymbolKind.Field: {
+                const lineText = document.lineAt(child.range.start.line).text;
+                if (ATTR_DECL_REGEX.test(lineText)) {
+                    attributes.push(extractAttribute(child, document));
+                }
                 break;
+            }
         }
     }
 
