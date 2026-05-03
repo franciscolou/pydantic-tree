@@ -23,6 +23,13 @@
                 "command": "pydanticTree.showProjectTree",
                 "title": "Pydantic: Árvore do Projeto"
             }
+        ],
+        "keybindings": [
+            {
+                "command": "pydanticTree.showClass",
+                "key": "ctrl+alt+space",
+                "when": "editorTextFocus && editorLangId == python"
+            }
         ]
     },
     "scripts": {
