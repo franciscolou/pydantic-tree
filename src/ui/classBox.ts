@@ -102,12 +102,12 @@ export function measureClassBox(
     node: ClassNode,
     inherited: { attrs: Set<string>; methods: Set<string> }
 ): { width: number; height: number } {
-    const { headerHeight, padding, lineHeight, sectionGap, methodTopPadding, maxWidth, sidePadding, charWidth } = UI.box;
+    const { headerHeight, padding, lineHeight, sectionGap, sectionTopPadding, maxWidth, sidePadding, charWidth } = UI.box;
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
     const layouts = computeMethodLayouts(node, wrapAt);
     const width = computeBoxWidth(node, layouts);
-    let y = headerHeight + padding + node.attributes.length * lineHeight;
-    if (node.attributes.length && node.methods.length) y += sectionGap / 2 + methodTopPadding;
+    let y = headerHeight + sectionTopPadding + node.attributes.length * lineHeight;
+    if (node.attributes.length && node.methods.length) y += sectionGap / 2 + sectionTopPadding;
     const methodLineCount = layouts.reduce((sum, layout) => sum + layout.measureLines.length, 0);
     return { width, height: y + methodLineCount * lineHeight + padding };
 }
@@ -148,7 +148,7 @@ function renderDivider(y: number, boxWidth: number): { svg: string; endY: number
     const dividerY = y + UI.box.sectionGap / 2;
     return {
         svg: Line({ x1: 12, y1: dividerY, x2: boxWidth - 12, y2: dividerY, stroke: Theme.colors.border }),
-        endY: dividerY + UI.box.methodTopPadding,
+        endY: dividerY + UI.box.sectionTopPadding,
     };
 }
 
@@ -245,13 +245,13 @@ export function renderClassBox(
     y: number,
     inherited: { attrs: Set<string>; methods: Set<string> }
 ): RenderedBox {
-    const { headerHeight, padding, maxWidth, sidePadding, charWidth, borderRadius } = UI.box;
+    const { headerHeight, padding, sectionTopPadding, maxWidth, sidePadding, charWidth, borderRadius } = UI.box;
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
 
     const layouts = computeMethodLayouts(node, wrapAt);
     const width = computeBoxWidth(node, layouts);
 
-    const contentStartY = headerHeight + padding;
+    const contentStartY = headerHeight + sectionTopPadding;
     const { svg: attrSvg, endY: afterAttrs } = renderAttributes(node, contentStartY, inherited);
 
     let methodStartY = afterAttrs;

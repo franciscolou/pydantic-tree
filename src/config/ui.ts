@@ -4,12 +4,12 @@ export const UI = {
         maxWidth: 720,
         headerHeight: 32,
         padding: 14,
-        sectionGap: 20,
+        sectionGap: 10,
         lineHeight: 20,
         sidePadding: 32,
         borderRadius: 6,
         charWidth: 8.8,
-        methodTopPadding: 12,
+        sectionTopPadding: 25,
     },
 
     tree: {
