@@ -3,6 +3,7 @@ import { Theme } from '../config';
 import { Line } from './components';
 
 const LANE_STEP = 18;
+const ATTACH_STEP = 6;
 
 /* =========================================================
    EDGE LANE ASSIGNMENT
@@ -94,9 +95,39 @@ function connectionsIntersect(
    CONNECTION DRAWING
 ========================================================= */
 
+// For each connection, computes a spread X at ownXs[i] so that connections sharing
+// the same attachment node are offset horizontally. Offsets are ordered to mirror
+// the order of otherXs, minimising visual crossing at the attachment point.
+function computeAttachXs(ownXs: number[], otherXs: number[]): number[] {
+    const n = ownXs.length;
+    const result = new Array<number>(n);
+
+    const groups = new Map<number, number[]>();
+    for (let i = 0; i < n; i++) {
+        if (!groups.has(ownXs[i])) groups.set(ownXs[i], []);
+        groups.get(ownXs[i])!.push(i);
+    }
+
+    for (const [ownX, indices] of groups) {
+        if (indices.length === 1) {
+            result[indices[0]] = ownX;
+            continue;
+        }
+        indices.sort((a, b) => otherXs[a] - otherXs[b]);
+        const half = ((indices.length - 1) * ATTACH_STEP) / 2;
+        indices.forEach((idx, pos) => {
+            result[idx] = ownX - half + pos * ATTACH_STEP;
+        });
+    }
+
+    return result;
+}
+
 // Draws each connection as three segments (vertical → horizontal → vertical).
 // Colors are assigned via greedy graph coloring on the geometric intersection graph,
 // guaranteeing that no two visually crossing connections share a color.
+// Attachment points on each node are spread horizontally when multiple edges share
+// the same node, ordered to mirror the other endpoint to minimise extra crossings.
 export function drawConnections(
     connections: EdgeConnection[],
     busY: number,
@@ -107,6 +138,15 @@ export function drawConnections(
     const n = connections.length;
     const laneOffsets = assignEdgeLanes(connections.map(c => [c.parentX, c.childX]), LANE_STEP);
     const edgeYs = laneOffsets.map(lo => busY + lo);
+
+    const parentAttachXs = computeAttachXs(
+        connections.map(c => c.parentX),
+        connections.map(c => c.childX)
+    );
+    const childAttachXs = computeAttachXs(
+        connections.map(c => c.childX),
+        connections.map(c => c.parentX)
+    );
 
     const colorIndices = new Array<number>(n).fill(0);
     for (let i = 0; i < n; i++) {
@@ -122,12 +162,14 @@ export function drawConnections(
     }
 
     let svg = '';
-    connections.forEach(({ parentX, parentBottom, childX, childTop }, i) => {
+    connections.forEach(({ parentBottom, childTop }, i) => {
         const edgeY = edgeYs[i];
         const color = palette[colorIndices[i] % palette.length];
-        svg += Line({ x1: parentX, y1: parentBottom, x2: parentX, y2: edgeY, stroke: color });
-        svg += Line({ x1: parentX, y1: edgeY, x2: childX, y2: edgeY, stroke: color });
-        svg += Line({ x1: childX, y1: edgeY, x2: childX, y2: childTop, stroke: color });
+        const pX = parentAttachXs[i];
+        const cX = childAttachXs[i];
+        svg += Line({ x1: pX, y1: parentBottom, x2: pX, y2: edgeY, stroke: color });
+        svg += Line({ x1: pX, y1: edgeY, x2: cX, y2: edgeY, stroke: color });
+        svg += Line({ x1: cX, y1: edgeY, x2: cX, y2: childTop, stroke: color });
     });
     return svg;
 }
