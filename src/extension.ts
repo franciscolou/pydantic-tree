@@ -15,8 +15,8 @@ import { Messages } from './config';
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         registerHoverProvider(),
-        registerShowClassCommand(),
-        registerShowProjectTreeCommand()
+        registerShowClassCommand(context),
+        registerShowProjectTreeCommand(context)
     );
 }
 
@@ -36,19 +36,19 @@ function registerHoverProvider(): vscode.Disposable {
     });
 }
 
-function registerShowClassCommand(): vscode.Disposable {
-    return vscode.commands.registerCommand('pydanticTree.showClass', showClassTree);
+function registerShowClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
+    return vscode.commands.registerCommand('pydanticTree.showClass', () => showClassTree(context));
 }
 
-function registerShowProjectTreeCommand(): vscode.Disposable {
-    return vscode.commands.registerCommand('pydanticTree.showProjectTree', showProjectTree);
+function registerShowProjectTreeCommand(context: vscode.ExtensionContext): vscode.Disposable {
+    return vscode.commands.registerCommand('pydanticTree.showProjectTree', () => showProjectTree(context));
 }
 
 /* =========================================================
    COMMAND HANDLERS
 ========================================================= */
 
-async function showClassTree() {
+async function showClassTree(context: vscode.ExtensionContext) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
 
@@ -65,13 +65,14 @@ async function showClassTree() {
     const descendants = resolveLayeredNodes(collectDescendants(focusNode.name, classes), classes);
 
     openWebview(
+        context,
         'pydanticClassTree',
         Messages.titles.classTree(focusNode.name),
         renderClassTreeSVG(focusNode, ancestors, descendants)
     );
 }
 
-async function showProjectTree() {
+async function showProjectTree(context: vscode.ExtensionContext) {
     let allClasses = new Map<string, ClassNode>();
 
     await vscode.window.withProgress(
@@ -94,6 +95,7 @@ async function showProjectTree() {
     const componentLayers = components.map(comp => buildComponentLayers(comp));
 
     openWebview(
+        context,
         'pydanticProjectTree',
         Messages.titles.projectTree,
         renderForestSVG(componentLayers, allClasses)
@@ -128,12 +130,21 @@ function resolveLayeredNodes(
    WEBVIEW
 ========================================================= */
 
-function openWebview(viewType: string, title: string, html: string) {
+function openWebview(
+    context: vscode.ExtensionContext,
+    viewType: string,
+    title: string,
+    html: string
+) {
     const panel = vscode.window.createWebviewPanel(
         viewType,
         title,
         vscode.ViewColumn.Beside,
         { enableScripts: true }
+    );
+    panel.iconPath = vscode.Uri.joinPath(
+        context.extensionUri,
+        ...'assets/icon/pytree.svg'.split("/")
     );
     panel.webview.html = html;
 
