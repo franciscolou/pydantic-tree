@@ -21,7 +21,12 @@ function formatBases(node: ClassNode): string {
 
 function formatAttributes(node: ClassNode): string {
     if (!node.attributes.length) return Messages.hover.noAttributes;
-    return node.attributes.map(attr => `• \`${attr.name}: ${attr.type ?? '?'}\``).join('\n\n');
+    return node.attributes.map(attr => {
+        const base = `${attr.name}: ${attr.type ?? '?'}`;
+        if (!attr.defaultValue) return `• \`${base}\``;
+        const compact = attr.defaultValue.replace(/\n\s*/g, ' ');
+        return `• \`${base} = ${compact}\``;
+    }).join('\n\n');
 }
 
 function formatMethods(node: ClassNode): string {

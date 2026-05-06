@@ -11,7 +11,7 @@ const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
 
 const ATTR_DECL_REGEX =
-    /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=\n]+?)(?:\s*=.*)?$/;
+    /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=\n]+?)(?:\s*=\s*(.+))?$/;
 
 /* =========================================================
    DOCUMENT SYMBOLS
@@ -56,15 +56,42 @@ function extractMethod(
     };
 }
 
+function bracketDepth(text: string): number {
+    let depth = 0;
+    for (const ch of text) {
+        if (ch === '(' || ch === '[' || ch === '{') depth++;
+        else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    }
+    return depth;
+}
+
 function extractAttribute(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
 ): AttrDef {
-    const lineText = document.lineAt(sym.range.start.line).text;
-    const match = lineText.match(ATTR_DECL_REGEX);
+    const firstLine = document.lineAt(sym.range.start.line).text;
+    const match = firstLine.match(ATTR_DECL_REGEX);
+
+    const baseIndent = firstLine.match(/^ */)?.[0].length ?? 0;
+
+    let defaultValue: string | undefined;
+    if (match?.[3] !== undefined) {
+        const parts = [match[3].trim()];
+        let depth = bracketDepth(parts[0]);
+        let l = sym.range.start.line + 1;
+        while (depth > 0 && l < document.lineCount && l <= sym.range.start.line + 20) {
+            const rawLine = document.lineAt(l).text;
+            parts.push(rawLine.slice(baseIndent).trimEnd());
+            depth += bracketDepth(rawLine);
+            l++;
+        }
+        defaultValue = parts.join('\n');
+    }
+
     return {
         name: sym.name,
         type: match?.[2]?.trim() || undefined,
+        defaultValue: defaultValue || undefined,
         definedAtLine: sym.range.start.line,
     };
 }

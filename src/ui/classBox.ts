@@ -55,6 +55,107 @@ function renderTypeSpans(typeStr: string): string {
 }
 
 /* =========================================================
+   PYTHON VALUE TOKENIZER
+========================================================= */
+
+const NUMBER_COLOR = '#b5cea8';
+const BOOL_COLOR   = '#569cd6';
+const BOOL_KEYWORDS = new Set(['True', 'False', 'None']);
+const PY_KEYWORDS   = new Set(['and', 'or', 'not', 'in', 'is', 'lambda', 'if', 'else', 'for']);
+
+function escapeXml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderPythonValue(expr: string): string {
+    type Tok = { text: string; color: string };
+    const toks: Tok[] = [];
+    let i = 0;
+
+    while (i < expr.length) {
+        // String prefix + literal
+        const strPfx = expr.slice(i).match(/^[fFbBrRuU]{0,2}(?:'{3}|"{3}|'|")/);
+        if (strPfx) {
+            const raw = strPfx[0];
+            const q = raw.endsWith("'''") ? "'''" : raw.endsWith('"""') ? '"""' : raw.slice(-1);
+            let j = i + raw.length;
+            while (j < expr.length) {
+                if (expr.startsWith(q, j)) { j += q.length; break; }
+                if (expr[j] === '\\') j++;
+                j++;
+            }
+            toks.push({ text: escapeXml(expr.slice(i, j)), color: Theme.colors.string });
+            i = j;
+            continue;
+        }
+
+        // Number
+        if (/[0-9]/.test(expr[i]) || (expr[i] === '.' && /[0-9]/.test(expr[i + 1] ?? ''))) {
+            if (expr[i] === '0' && /[xXbBoO]/.test(expr[i + 1] ?? '')) {
+                let j = i + 2;
+                while (j < expr.length && /[0-9a-fA-F_]/.test(expr[j])) j++;
+                toks.push({ text: expr.slice(i, j), color: NUMBER_COLOR });
+                i = j;
+            } else {
+                let p = i;
+                while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
+                if (p > i) toks.push({ text: expr.slice(i, p), color: NUMBER_COLOR });
+                i = p;
+                if (i < expr.length && expr[i] === '.') {
+                    toks.push({ text: '.', color: Theme.colors.text });
+                    i++;
+                    p = i;
+                    while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
+                    if (p > i) toks.push({ text: expr.slice(i, p), color: NUMBER_COLOR });
+                    i = p;
+                }
+                if (i < expr.length && /[eE]/.test(expr[i])) {
+                    p = i + 1;
+                    if (p < expr.length && /[+\-]/.test(expr[p])) p++;
+                    while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
+                    toks.push({ text: expr.slice(i, p), color: NUMBER_COLOR });
+                    i = p;
+                }
+                if (i < expr.length && /[jJ]/.test(expr[i])) {
+                    toks.push({ text: expr[i], color: Theme.colors.text });
+                    i++;
+                }
+            }
+            continue;
+        }
+
+        // Identifier / keyword
+        if (/[a-zA-Z_]/.test(expr[i])) {
+            let j = i;
+            while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) j++;
+            const word = expr.slice(i, j);
+            const color = BOOL_KEYWORDS.has(word)
+                ? BOOL_COLOR
+                : PY_KEYWORDS.has(word)
+                    ? Theme.colors.attribute
+                    : /[(\[]/.test(expr[j] ?? '')
+                        ? Theme.colors.method
+                        : Theme.colors.text;
+            toks.push({ text: word, color });
+            i = j;
+            continue;
+        }
+
+        toks.push({ text: escapeXml(expr[i]), color: Theme.colors.text });
+        i++;
+    }
+
+    // Merge adjacent same-color tokens
+    const merged: Tok[] = [];
+    for (const tok of toks) {
+        if (merged.length && merged[merged.length - 1].color === tok.color)
+            merged[merged.length - 1].text += tok.text;
+        else merged.push({ ...tok });
+    }
+    return merged.map(tok => TSpan({ fill: tok.color, children: tok.text })).join('');
+}
+
+/* =========================================================
    METHOD LAYOUT
 ========================================================= */
 
@@ -87,7 +188,12 @@ export function computeMethodLayouts(node: ClassNode, wrapAt: number): MethodLay
 
 export function computeBoxWidth(node: ClassNode, layouts: MethodLayout[]): number {
     const { minWidth, maxWidth, charWidth, sidePadding } = UI.box;
-    const attrTexts = node.attributes.map(attr => `${attr.name}: ${attr.type ?? '?'}`);
+    const attrTexts = node.attributes.flatMap(attr => {
+        const base = `${attr.name}: ${attr.type ?? '?'}`;
+        if (!attr.defaultValue) return [base];
+        const [first, ...rest] = attr.defaultValue.split('\n');
+        return [`${base} = ${first}`, ...rest];
+    });
     const methodTexts = layouts.flatMap(layout => layout.measureLines);
     const longestLineLength = Math.max(
         node.name.length,
@@ -106,7 +212,9 @@ export function measureClassBox(
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
     const layouts = computeMethodLayouts(node, wrapAt);
     const width = computeBoxWidth(node, layouts);
-    let y = headerHeight + sectionTopPadding + node.attributes.length * lineHeight;
+    const attrLineCount = node.attributes.reduce((sum, attr) =>
+        sum + (attr.defaultValue ? attr.defaultValue.split('\n').length : 1), 0);
+    let y = headerHeight + sectionTopPadding + attrLineCount * lineHeight;
     if (node.attributes.length && node.methods.length) y += sectionGap / 2 + sectionTopPadding;
     const methodLineCount = layouts.reduce((sum, layout) => sum + layout.measureLines.length, 0);
     return { width, height: y + methodLineCount * lineHeight + padding };
@@ -121,11 +229,13 @@ function renderAttributes(
     startY: number,
     inherited: { attrs: Set<string> }
 ): { svg: string; endY: number } {
-    const { lineHeight } = UI.box;
+    const { lineHeight, charWidth } = UI.box;
     let y = startY;
     const svg = node.attributes
         .map(attr => {
-            const text = Text({
+            const [firstDefault, ...contLines] = attr.defaultValue ? attr.defaultValue.split('\n') : [];
+
+            const firstText = Text({
                 x: 16,
                 y,
                 fontSize: Theme.font.size.normal,
@@ -135,10 +245,27 @@ function renderAttributes(
                         children: attr.name,
                     }) +
                     TSpan({ fill: Theme.colors.text, children: ': ' }) +
-                    renderTypeSpans(attr.type ?? '?'),
+                    renderTypeSpans(attr.type ?? '?') +
+                    (firstDefault !== undefined
+                        ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
+                          renderPythonValue(firstDefault)
+                        : ''),
             });
             y += lineHeight;
-            return navGroup(node.fileUri, attr.definedAtLine, text);
+
+            const contSvg = contLines.map(line => {
+                const leadingSpaces = line.match(/^ */)?.[0].length ?? 0;
+                const text = Text({
+                    x: 16 + leadingSpaces * charWidth,
+                    y,
+                    fontSize: Theme.font.size.normal,
+                    children: renderPythonValue(line.trimStart()),
+                });
+                y += lineHeight;
+                return text;
+            }).join('');
+
+            return navGroup(node.fileUri, attr.definedAtLine, firstText + contSvg);
         })
         .join('');
     return { svg, endY: y };

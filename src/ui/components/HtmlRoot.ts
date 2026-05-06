@@ -20,6 +20,7 @@ export function HtmlRoot(body: string): string {
       --pt-attribute:#9cdcfe;
       --pt-method:   #dccd79;
       --pt-override: #c586c0;
+      --pt-bool: var(--vscode-symbolIcon-booleanForeground)
 
       /* Edge colors */
       --pt-edge:   var(--vscode-editorWidget-border, #6a6a6a);

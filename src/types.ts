@@ -1,6 +1,7 @@
 export interface AttrDef {
     name: string;
     type?: string;
+    defaultValue?: string;
     definedAtLine: number;
 }
 
