@@ -104,7 +104,8 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
     const rightBase = Math.max(...allBoxes.map(b => b.x + b.width / 2)) + MARGIN;
     const leftBase  = Math.min(...allBoxes.map(b => b.x - b.width / 2)) - MARGIN;
 
-    const goRight = naIdxs.map(({ c }) => c.childX >= c.parentX);
+    const componentCenter = rightBase + leftBase;
+    const goRight = naIdxs.map(({ c }) => c.childX + c.parentX > componentCenter);
 
     // Y-lane assignment: connections sharing the same base Y get stacked.
     const assignYOffsets = (keys: number[]): number[] => {

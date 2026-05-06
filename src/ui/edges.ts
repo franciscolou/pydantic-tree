@@ -259,10 +259,9 @@ export function renderAncestorEdges(
                 const margin = 40;
 
                 for (const { childBox } of children) {
-                    const routeRight = childBox.x >= 0;
-                    const sideX = routeRight
-                        ? Math.max(...nearbyBoxes.map(box => box.x + box.width / 2)) + margin
-                        : Math.min(...nearbyBoxes.map(box => box.x - box.width / 2)) - margin;
+                    const rightEdge = Math.max(...nearbyBoxes.map(box => box.x + box.width / 2)) + margin;
+                    const leftEdge  = Math.min(...nearbyBoxes.map(box => box.x - box.width / 2)) - margin;
+                    const sideX = parentBox.x + childBox.x > rightEdge + leftEdge ? rightEdge : leftEdge;
 
                     drawVerticalIfNeeded();
                     edges += Line({ x1: parentBox.x, y1: busY, x2: sideX, y2: busY, stroke: Theme.colors.edge });
