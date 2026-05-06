@@ -20,6 +20,10 @@
                 "title": "Pydantic: Visualizar classe"
             },
             {
+                "command": "pydanticTree.showFullClassTree",
+                "title": "Pydantic: Árvore completa da classe"
+            },
+            {
                 "command": "pydanticTree.showProjectTree",
                 "title": "Pydantic: Árvore do Projeto"
             }

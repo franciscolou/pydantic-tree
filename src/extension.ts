@@ -16,6 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         registerHoverProvider(),
         registerShowClassCommand(context),
+        registerShowFullClassCommand(context),
         registerShowProjectTreeCommand(context)
     );
 }
@@ -40,6 +41,10 @@ function registerShowClassCommand(context: vscode.ExtensionContext): vscode.Disp
     return vscode.commands.registerCommand('pydanticTree.showClass', () => showClassTree(context));
 }
 
+function registerShowFullClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
+    return vscode.commands.registerCommand('pydanticTree.showFullClassTree', () => showFullClassTree(context));
+}
+
 function registerShowProjectTreeCommand(context: vscode.ExtensionContext): vscode.Disposable {
     return vscode.commands.registerCommand('pydanticTree.showProjectTree', () => showProjectTree(context));
 }
@@ -61,6 +66,40 @@ async function showClassTree(context: vscode.ExtensionContext) {
     }
 
     const classes = await buildInheritanceMap(focusNode.name, document);
+    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.name, classes), classes);
+
+    openWebview(
+        context,
+        'pydanticClassTree',
+        Messages.titles.classTree(focusNode.name),
+        renderClassTreeSVG(focusNode, ancestors, [])
+    );
+}
+
+async function showFullClassTree(context: vscode.ExtensionContext) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+
+    const { document, selection } = editor;
+    const focusNode = await getClassUnderCursor(document, selection.active);
+
+    if (!focusNode) {
+        vscode.window.showInformationMessage(Messages.noClassUnderCursor);
+        return;
+    }
+
+    let classes = await buildInheritanceMap(focusNode.name, document);
+
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: Messages.titles.scanningFiles, cancellable: false },
+        async progress => {
+            const allClasses = await scanWorkspaceClasses(progress);
+            for (const [name, node] of allClasses) {
+                if (!classes.has(name)) classes.set(name, node);
+            }
+        }
+    );
+
     const ancestors = resolveLayeredNodes(collectAncestors(focusNode.name, classes), classes);
     const descendants = resolveLayeredNodes(collectDescendants(focusNode.name, classes), classes);
 
