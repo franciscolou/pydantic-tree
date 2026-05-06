@@ -132,6 +132,29 @@ export function renderClassTreeSVG(
 export function renderViewportScript(opts: { initialScale?: number } = {}): string {
     const initialScale = opts.initialScale ?? 1;
     return `
+<style>
+  #find-bar button {
+    background: transparent;
+    border: 1px solid var(--pt-border);
+    color: var(--pt-text);
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+  #find-bar button:hover { background: var(--pt-border); }
+  #find-close { border: none !important; color: #888 !important; padding: 2px 5px !important; }
+  #find-close:hover { color: var(--pt-text) !important; background: transparent !important; }
+  #find-input:focus { outline: 1px solid #007acc; }
+</style>
+<div id="find-bar" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); background:var(--pt-panel-bg); border:1px solid var(--pt-border); border-radius:6px; padding:6px 10px; align-items:center; gap:8px; z-index:1000; box-shadow:0 4px 16px rgba(0,0,0,0.5)">
+  <input id="find-input" type="text" placeholder="Find in tree…" autocomplete="off" spellcheck="false"
+    style="background:var(--pt-bg); border:1px solid var(--pt-border); color:var(--pt-text); padding:4px 8px; border-radius:3px; outline:none; width:200px; font-size:13px; font-family:monospace" />
+  <span id="find-count" style="color:#888; font-size:12px; min-width:60px; text-align:center"></span>
+  <button id="find-prev" title="Previous (Shift+Enter)">↑</button>
+  <button id="find-next" title="Next (Enter)">↓</button>
+  <button id="find-close" title="Close (Escape)">✕</button>
+</div>
 <script>
   const svg = document.getElementById("svgRoot");
   const viewport = document.getElementById("viewport");
@@ -233,6 +256,140 @@ export function renderViewportScript(opts: { initialScale?: number } = {}): stri
   }, { passive: false });
 
   update();
+
+  // === FIND ===
+
+  let findMatches = [];
+  let findCurrent = -1;
+  const findBar    = document.getElementById('find-bar');
+  const findInput  = document.getElementById('find-input');
+  const findCountEl = document.getElementById('find-count');
+  const findPrev   = document.getElementById('find-prev');
+  const findNext   = document.getElementById('find-next');
+  const findClose  = document.getElementById('find-close');
+
+  let hlGroup = null;
+
+  function getHlGroup() {
+    if (!hlGroup) {
+      hlGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      hlGroup.setAttribute('pointer-events', 'none');
+      viewport.appendChild(hlGroup);
+    }
+    return hlGroup;
+  }
+
+  function clearHighlights() {
+    if (hlGroup) hlGroup.innerHTML = '';
+  }
+
+  function buildHighlightRect(elem, isCurrent) {
+    const r    = elem.getBoundingClientRect();
+    const svgR = svg.getBoundingClientRect();
+    if (!r.width && !r.height) return null;
+    const pad = 2;
+    const x = (r.left - svgR.left - tx) / scale - pad;
+    const y = (r.top  - svgR.top  - ty) / scale - pad;
+    const w = r.width  / scale + pad * 2;
+    const h = r.height / scale + pad * 2;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', w);
+    rect.setAttribute('height', h);
+    rect.setAttribute('fill', isCurrent ? 'rgba(255,200,0,0.45)' : 'rgba(255,200,0,0.18)');
+    rect.setAttribute('rx', '2');
+    return rect;
+  }
+
+  function buildHighlights() {
+    clearHighlights();
+    if (!findMatches.length) return;
+    const g = getHlGroup();
+    findMatches.forEach((elem, i) => {
+      const rect = buildHighlightRect(elem, i === findCurrent);
+      if (rect) g.appendChild(rect);
+    });
+  }
+
+  function updateCount() {
+    if (!findMatches.length) {
+      findCountEl.textContent = findInput.value.trim() ? 'No results' : '';
+      findCountEl.style.color = findInput.value.trim() ? '#f88' : '#888';
+    } else {
+      findCountEl.textContent = (findCurrent + 1) + ' / ' + findMatches.length;
+      findCountEl.style.color = '#888';
+    }
+  }
+
+  function panToMatch(index) {
+    const elem = findMatches[index];
+    if (!elem) return;
+    const r    = elem.getBoundingClientRect();
+    const svgR = svg.getBoundingClientRect();
+    tx += svgR.width  / 2 - (r.left + r.width  / 2 - svgR.left);
+    ty += svgR.height / 2 - (r.top  + r.height / 2 - svgR.top);
+    update();
+  }
+
+  function doSearch(query) {
+    findMatches = [];
+    findCurrent = -1;
+    clearHighlights();
+    if (!query.trim()) { updateCount(); return; }
+    const q = query.toLowerCase();
+    viewport.querySelectorAll('text').forEach(t => {
+      if (t.textContent.toLowerCase().includes(q)) findMatches.push(t);
+    });
+    if (findMatches.length) {
+      findCurrent = 0;
+      panToMatch(0);
+    }
+    updateCount();
+    buildHighlights();
+  }
+
+  function navigate(dir) {
+    if (!findMatches.length) return;
+    findCurrent = (findCurrent + dir + findMatches.length) % findMatches.length;
+    panToMatch(findCurrent);
+    updateCount();
+    buildHighlights();
+  }
+
+  function openFindBar() {
+    findBar.style.display = 'flex';
+    findInput.focus();
+    findInput.select();
+  }
+
+  function closeFindBar() {
+    findBar.style.display = 'none';
+    clearHighlights();
+    findMatches = [];
+    findCurrent = -1;
+    findCountEl.textContent = '';
+    findInput.value = '';
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      openFindBar();
+    } else if (e.key === 'Escape' && findBar.style.display !== 'none') {
+      closeFindBar();
+    }
+  });
+
+  findInput.addEventListener('input', () => doSearch(findInput.value));
+  findInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); navigate(e.shiftKey ? -1 : 1); }
+    if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
+  });
+
+  findPrev.addEventListener('click',  () => navigate(-1));
+  findNext.addEventListener('click',  () => navigate(1));
+  findClose.addEventListener('click', () => closeFindBar());
 </script>
 `;
 }
