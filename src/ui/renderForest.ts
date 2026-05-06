@@ -4,39 +4,9 @@ import { Svg, Group, HtmlRoot, Line } from './components';
 import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
 import { renderViewportScript } from './render';
 import { drawConnections, type EdgeConnection } from './edges';
+import { orderByParentBarycenter } from './layout';
 
 const COMPONENT_GAP = 400;
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function centerOutSort<T>(items: T[], priorities: number[]): T[] {
-    if (items.length <= 1) return [...items];
-    const indexed = items.map((item, i) => ({ item, priority: priorities[i] }));
-    indexed.sort((a, b) => b.priority - a.priority);
-    const result = new Array<T>(items.length);
-    const center = Math.floor((items.length - 1) / 2);
-    result[center] = indexed[0].item;
-    let r = 1, l = 1;
-    for (let i = 1; i < indexed.length; i++) {
-        if (i % 2 === 1) result[center + r++] = indexed[i].item;
-        else              result[center - l++] = indexed[i].item;
-    }
-    return result;
-}
-
-function sortLayersCenterOut(
-    layers: ClassNode[],
-    allLayers: ClassNode[][],
-    layerIndex: number
-): ClassNode[] {
-    const childCounts = layers.map(node => {
-        if (layerIndex >= allLayers.length - 1) return 0;
-        return allLayers[layerIndex + 1].filter(c => (c.bases ?? []).includes(node.name)).length;
-    });
-    return centerOutSort(layers, childCounts);
-}
 
 /* =========================================================
    EDGE RENDERING
@@ -262,17 +232,21 @@ export function renderForestSVG(
         const rawLayers = componentLayers[ci];
         const centerX = centerXs[ci];
 
-        // Sort each layer center-out by child count for visual clarity
-        const layers = rawLayers.map((layer, li) => sortLayersCenterOut(layer, rawLayers, li));
-
+        const layers: ClassNode[][] = [];
         const layerBoxes: BoxMeasures[][] = [];
         let currentY = 0;
+        let parentPositions = new Map<string, number>();
 
-        for (const layer of layers) {
-            const { svgs, positions } = positionLayerAt(layer, currentY, centerX, allNodes, horizontalGap);
+        for (const rawLayer of rawLayers) {
+            const ordered = parentPositions.size > 0
+                ? orderByParentBarycenter(rawLayer, parentPositions)
+                : [...rawLayer];
+            layers.push(ordered);
+            const { svgs, positions } = positionLayerAt(ordered, currentY, centerX, allNodes, horizontalGap);
             boxesSvg += svgs.join('');
             layerBoxes.push(positions);
             currentY += Math.max(...positions.map(p => p.height)) + verticalGap;
+            parentPositions = new Map(ordered.map((node, i) => [node.name, positions[i].x]));
         }
 
         edgesSvg += renderComponentEdges(layers, layerBoxes);

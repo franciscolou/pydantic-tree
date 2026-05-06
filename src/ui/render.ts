@@ -3,58 +3,7 @@ import { Theme, UI } from '../config';
 import { Svg, Group, HtmlRoot } from './components';
 import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
 import { renderAncestorEdges, renderDescendantEdges } from './edges';
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function centerOutSort<T>(items: T[], priorities: number[]): T[] {
-    if (items.length <= 1) return [...items];
-    const indexed = items.map((item, i) => ({ item, priority: priorities[i] }));
-    indexed.sort((a, b) => b.priority - a.priority);
-    const result = new Array<T>(items.length);
-    const center = Math.floor((items.length - 1) / 2);
-    result[center] = indexed[0].item;
-    let r = 1, l = 1;
-    for (let i = 1; i < indexed.length; i++) {
-        if (i % 2 === 1) result[center + r++] = indexed[i].item;
-        else              result[center - l++] = indexed[i].item;
-    }
-    return result;
-}
-
-function computeAncestorChainDepths(layers: ClassNode[][]): number[][] {
-    const depths: number[][] = new Array(layers.length);
-    for (let i = layers.length - 1; i >= 0; i--) {
-        depths[i] = layers[i].map(node => {
-            let maxDepth = 0;
-            for (let j = i + 1; j < layers.length; j++) {
-                layers[j].forEach((ancestor, k) => {
-                    if ((node.bases ?? []).includes(ancestor.name)) {
-                        maxDepth = Math.max(maxDepth, depths[j][k] + 1);
-                    }
-                });
-            }
-            return maxDepth;
-        });
-    }
-    return depths;
-}
-
-function computeDescendantChainDepths(layers: ClassNode[][]): number[][] {
-    const depths: number[][] = new Array(layers.length);
-    for (let i = layers.length - 1; i >= 0; i--) {
-        depths[i] = layers[i].map(node => {
-            if (i === layers.length - 1) return 0;
-            const childDepths = layers[i + 1]
-                .map((child, k) => ({ depth: depths[i + 1][k], isChild: (child.bases ?? []).includes(node.name) }))
-                .filter(entry => entry.isChild)
-                .map(entry => entry.depth);
-            return childDepths.length > 0 ? 1 + Math.max(...childDepths) : 0;
-        });
-    }
-    return depths;
-}
+import { orderByParentBarycenter, orderByChildBarycenter } from './layout';
 
 function measureLayerMaxHeight(layer: ClassNode[], allNodes: Map<string, ClassNode>): number {
     return Math.max(...layer.map(node => measureClassBox(node, collectInheritedNames(node, allNodes)).height));
@@ -105,34 +54,43 @@ export function renderClassTreeSVG(
     // Focus box at origin
     const focusRendered = renderClassBox(focus, 0, 0, collectInheritedNames(focus, allNodes));
 
-    // Order layers so nodes with deeper chains land in the center
-    const ancestorDepths = computeAncestorChainDepths(ancestorLayers);
-    const orderedAncestorLayers = ancestorLayers.map((layer, i) => centerOutSort(layer, ancestorDepths[i]));
-
-    const descendantDepths = computeDescendantChainDepths(descendantLayers);
-    const orderedDescendantLayers = descendantLayers.map((layer, i) => centerOutSort(layer, descendantDepths[i]));
-
-    // Position ancestor layers — measure height first so the gap to the layer below is exact
+    // Position ancestor layers — order each layer by the average x of its children in the layer below,
+    // so ancestors land horizontally close to the descendants they connect to.
     let currentY = 0;
     const ancestorLayerBoxes: BoxMeasures[][] = [];
+    const orderedAncestorLayers: ClassNode[][] = [];
     let boxesSvg = focusRendered.svg;
 
-    for (const layer of orderedAncestorLayers) {
-        currentY -= verticalGap + measureLayerMaxHeight(layer, allNodes);
-        const { svgs, positions } = positionLayer(layer, currentY, allNodes, horizontalGap);
+    let prevAncestorLayer: ClassNode[] = [focus];
+    let prevAncestorPositions = new Map<string, number>([[focus.name, 0]]);
+
+    for (const layer of ancestorLayers) {
+        const ordered = orderByChildBarycenter(layer, prevAncestorLayer, prevAncestorPositions);
+        orderedAncestorLayers.push(ordered);
+        currentY -= verticalGap + measureLayerMaxHeight(ordered, allNodes);
+        const { svgs, positions } = positionLayer(ordered, currentY, allNodes, horizontalGap);
         boxesSvg += svgs.join('');
         ancestorLayerBoxes.push(positions);
+        prevAncestorPositions = new Map(ordered.map((node, i) => [node.name, positions[i].x]));
+        prevAncestorLayer = ordered;
     }
 
-    // Position descendant layers — start just below the focus box
+    // Position descendant layers — order each layer by the average x of its parents in the layer above,
+    // so children land horizontally close to their parents.
     currentY = focusRendered.height + verticalGap;
     const descendantLayerBoxes: BoxMeasures[][] = [];
+    const orderedDescendantLayers: ClassNode[][] = [];
 
-    for (const layer of orderedDescendantLayers) {
-        const { svgs, positions } = positionLayer(layer, currentY, allNodes, horizontalGap);
+    let parentPositions = new Map<string, number>([[focus.name, 0]]);
+
+    for (const layer of descendantLayers) {
+        const ordered = orderByParentBarycenter(layer, parentPositions);
+        orderedDescendantLayers.push(ordered);
+        const { svgs, positions } = positionLayer(ordered, currentY, allNodes, horizontalGap);
         boxesSvg += svgs.join('');
         currentY += Math.max(...positions.map(box => box.height)) + verticalGap;
         descendantLayerBoxes.push(positions);
+        parentPositions = new Map(ordered.map((node, i) => [node.name, positions[i].x]));
     }
 
     // Draw edges
