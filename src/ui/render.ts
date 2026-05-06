@@ -145,7 +145,18 @@ export function renderClassTreeSVG(
             width: '100%',
             height: '100vh',
             children:
-                `<style>text{font-family:${Theme.font.family};}body,svg{background:${Theme.colors.background};}</style>` +
+                `
+                <style>
+                    text {
+                        font-family: ${Theme.font.family};
+                    }
+
+                    body,
+                    svg {
+                        background: ${Theme.colors.background};
+                    }
+                </style>
+                ` +
                 Group({
                     id: 'viewport',
                     transform: 'translate(0,0) scale(1)',

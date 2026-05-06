@@ -283,7 +283,24 @@ export function renderForestSVG(
             width: '100%',
             height: '100vh',
             children:
-                `<style>text{font-family:${Theme.font.family};}body,svg{background:${Theme.colors.background};}[data-line]:hover text{text-decoration:underline;text-decoration-color:rgba(255,255,255,0.85);}[data-line].nav-member:hover text{text-decoration-color:rgba(255,255,255,0.3);}</style>` +
+                `<style>
+                    text {
+                        font-family: ${Theme.font.family};
+                    }
+
+                    body, svg {
+                        background: ${Theme.colors.background};
+                    }
+
+                    [data-line]:hover text {
+                        text-decoration: underline;
+                        text-decoration-color: rgba(255,255,255,0.85);
+                    }
+
+                    [data-line].nav-member:hover text {
+                        text-decoration-color: rgba(255,255,255,0.3);
+                    }
+                </style>` +
                 Group({
                     id: 'viewport',
                     transform: 'translate(0,0) scale(1)',
