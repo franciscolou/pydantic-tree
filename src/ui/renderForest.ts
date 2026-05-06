@@ -178,6 +178,17 @@ function computeComponentWidth(
     }));
 }
 
+function computeComponentHeight(
+    layers: ClassNode[][],
+    allNodes: Map<string, ClassNode>,
+    verticalGap: number
+): number {
+    const layerHeights = layers.map(layer =>
+        Math.max(...layer.map(node => measureClassBox(node, collectInheritedNames(node, allNodes)).height))
+    );
+    return layerHeights.reduce((sum, h) => sum + h, 0) + Math.max(0, layers.length - 1) * verticalGap;
+}
+
 function positionLayerAt(
     layer: ClassNode[],
     topY: number,
@@ -214,28 +225,39 @@ export function renderForestSVG(
 ): string {
     const { verticalGap, horizontalGap } = UI.tree;
 
-    const widths = componentLayers.map(layers =>
-        computeComponentWidth(layers, allNodes, horizontalGap)
+    const N = componentLayers.length;
+    const cols = Math.max(1, Math.ceil(Math.sqrt(N)));
+    const rows = Math.ceil(N / cols);
+
+    const widths  = componentLayers.map(layers => computeComponentWidth(layers, allNodes, horizontalGap));
+    const heights = componentLayers.map(layers => computeComponentHeight(layers, allNodes, verticalGap));
+
+    const colWidths  = Array.from({ length: cols }, (_, c) =>
+        Math.max(0, ...Array.from({ length: rows }, (__, r) => widths[r * cols + c] ?? 0))
+    );
+    const rowHeights = Array.from({ length: rows }, (_, r) =>
+        Math.max(0, ...Array.from({ length: cols }, (__, c) => heights[r * cols + c] ?? 0))
     );
 
-    // Lay components left-to-right, each centered at its own X
-    const centerXs: number[] = [];
-    let currentLeft = 0;
-    for (let ci = 0; ci < widths.length; ci++) {
-        centerXs.push(currentLeft + widths[ci] / 2);
-        currentLeft += widths[ci] + COMPONENT_GAP;
-    }
+    const colXs = colWidths.reduce<number[]>((acc, _, i) =>
+        [...acc, i === 0 ? 0 : acc[i - 1] + colWidths[i - 1] + COMPONENT_GAP], []
+    );
+    const rowYs = rowHeights.reduce<number[]>((acc, _, i) =>
+        [...acc, i === 0 ? 0 : acc[i - 1] + rowHeights[i - 1] + COMPONENT_GAP], []
+    );
 
     let boxesSvg = '';
     let edgesSvg = '';
 
     for (let ci = 0; ci < componentLayers.length; ci++) {
         const rawLayers = componentLayers[ci];
-        const centerX = centerXs[ci];
+        const col = ci % cols;
+        const row = Math.floor(ci / cols);
+        const centerX = colXs[col] + colWidths[col] / 2;
 
         const layers: ClassNode[][] = [];
         const layerBoxes: BoxMeasures[][] = [];
-        let currentY = 0;
+        let currentY = rowYs[row];
         let parentPositions = new Map<string, number>();
 
         for (const rawLayer of rawLayers) {
