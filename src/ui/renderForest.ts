@@ -289,13 +289,9 @@ export function renderForestSVG(
                         background: ${Theme.colors.background};
                     }
 
-                    [data-line]:hover text {
+                    [data-pt-role="class"]:hover text {
                         text-decoration: underline;
                         text-decoration-color: var(--pt-hover-underline);
-                    }
-
-                    [data-line].nav-member:hover text {
-                        text-decoration-color: var(--pt-hover-underline-member);
                     }
                 </style>` +
                 Group({

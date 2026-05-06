@@ -2,8 +2,8 @@ import type { ClassNode, RenderedBox } from '../types';
 import { Theme, UI } from '../config';
 import { ClassBox, Line, Text, TSpan, Group } from './components';
 
-function navGroup(fileUri: string, line: number, content: string): string {
-    return `<g data-file="${fileUri}" data-line="${line}" style="cursor:pointer">${content}</g>`;
+function navGroup(fileUri: string, line: number, content: string, role: 'class' | 'member' = 'member'): string {
+    return `<g data-file="${fileUri}" data-line="${line}" data-pt-role="${role}" style="cursor:pointer">${content}</g>`;
 }
 
 /* =========================================================
@@ -412,7 +412,7 @@ export function renderClassBox(
         fontWeight: Theme.font.weight.bold,
         fill: Theme.colors.headerText,
         children: node.name,
-    }));
+    }), 'class');
 
     const clipId = `clip-${node.name.replace(/\W/g, '_')}`;
     const clipDef =

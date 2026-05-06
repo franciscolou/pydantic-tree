@@ -113,6 +113,11 @@ export function renderClassTreeSVG(
                     svg {
                         background: ${Theme.colors.background};
                     }
+
+                    [data-pt-role="class"]:hover text {
+                        text-decoration: underline;
+                        text-decoration-color: var(--pt-hover-underline);
+                    }
                 </style>
                 ` +
                 Group({
