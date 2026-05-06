@@ -23,7 +23,7 @@ export function Text({
   y="${y}"
   ${fontSize ? `font-size="${fontSize}"` : ''}
   ${fontWeight ? `font-weight="${fontWeight}"` : ''}
-  ${fill ? `fill="${fill}"` : ''}
+  ${fill ? `style="fill: ${fill}"` : ''}
   ${textAnchor ? `text-anchor="${textAnchor}"` : ''}
 >
 ${children}

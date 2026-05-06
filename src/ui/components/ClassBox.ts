@@ -25,8 +25,7 @@ export function ClassBox({
   height="${height}"
   rx="${borderRadius}"
   ry="${borderRadius}"
-  fill="${fill}"
-  stroke="${stroke}"
+  style="fill: ${fill}; stroke: ${stroke}"
 />
 `;
 }

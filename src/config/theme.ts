@@ -1,21 +1,28 @@
 export const Theme = {
     colors: {
-        background: '#1e1e1e',
-        panelBackground: '#252526',
-        border: '#3c3c3c',
+        background:   'var(--pt-bg)',
+        panelBackground: 'var(--pt-panel-bg)',
+        border:       'var(--pt-border)',
 
-        headerBackground: '#4ec9b0',
-        headerText: '#000000',
+        headerBackground: 'var(--pt-header-bg)',
+        headerText:   'var(--pt-header-text)',
 
-        text: '#d4d4d4',
-        type: '#4ec9b0',
-        string: '#ce9178',
-        attribute: '#9cdcfe',
-        method: '#dccd79',
-        override: '#c586c0',
+        text:         'var(--pt-text)',
+        type:         'var(--pt-type)',
+        string:       'var(--pt-string)',
+        attribute:    'var(--pt-attribute)',
+        method:       'var(--pt-method)',
+        override:     'var(--pt-override)',
 
-        edge: '#6a6a6a',
-        edgePalette: ['#7a9fc2', '#89b08a', '#c2a97a', '#a87ec2', '#7ab8b5', '#c28080'] as const,
+        edge:         'var(--pt-edge)',
+        edgePalette: [
+            'var(--pt-edge-0)',
+            'var(--pt-edge-1)',
+            'var(--pt-edge-2)',
+            'var(--pt-edge-3)',
+            'var(--pt-edge-4)',
+            'var(--pt-edge-5)',
+        ] as const,
     },
 
     font: {

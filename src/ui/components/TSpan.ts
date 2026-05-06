@@ -4,5 +4,5 @@ export interface TSpanProps {
 }
 
 export function TSpan({ fill, children }: TSpanProps): string {
-    return `<tspan${fill ? ` fill="${fill}"` : ''}>${children}</tspan>`;
+    return `<tspan${fill ? ` style="fill: ${fill}"` : ''}>${children}</tspan>`;
 }

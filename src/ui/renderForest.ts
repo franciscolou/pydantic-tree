@@ -294,11 +294,11 @@ export function renderForestSVG(
 
                     [data-line]:hover text {
                         text-decoration: underline;
-                        text-decoration-color: rgba(255,255,255,0.85);
+                        text-decoration-color: var(--pt-hover-underline);
                     }
 
                     [data-line].nav-member:hover text {
-                        text-decoration-color: rgba(255,255,255,0.3);
+                        text-decoration-color: var(--pt-hover-underline-member);
                     }
                 </style>` +
                 Group({

@@ -23,8 +23,7 @@ export function Line({
   y1="${y1}"
   x2="${x2}"
   y2="${y2}"
-  stroke="${stroke}"
-  stroke-width="${strokeWidth}"
+  style="stroke: ${stroke}; stroke-width: ${strokeWidth}"
 />
 `;
 }
