@@ -2,7 +2,7 @@ import type { ClassNode, BoxMeasures } from '../types';
 import { Theme, UI } from '../config';
 import { Svg, Group, HtmlRoot, Line } from './components';
 import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
-import { renderViewportScript } from './render';
+import { renderBaseStyles, renderViewportScript } from './viewport';
 import { drawConnections, type EdgeConnection } from './edges';
 import { orderByParentBarycenter } from './layout';
 
@@ -280,20 +280,7 @@ export function renderForestSVG(
             width: '100%',
             height: '100vh',
             children:
-                `<style>
-                    text {
-                        font-family: ${Theme.font.family};
-                    }
-
-                    body, svg {
-                        background: ${Theme.colors.background};
-                    }
-
-                    [data-pt-role="class"]:hover text {
-                        text-decoration: underline;
-                        text-decoration-color: var(--pt-hover-underline);
-                    }
-                </style>` +
+                renderBaseStyles() +
                 Group({
                     id: 'viewport',
                     transform: 'translate(0,0) scale(1)',
