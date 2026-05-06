@@ -187,17 +187,16 @@ export function renderAncestorEdges(
 
     if (layerBoxes.length === 0) return edges;
 
-    // Layer 0: shared bus — all direct parents connect to the focus via a single horizontal bus
-    const layer0Boxes = layerBoxes[0];
-    const layer0Bottom = Math.max(...layer0Boxes.map(box => box.y + box.height));
+    // Layer 0: direct parents → focus, drawn with palette colors for visibility
+    const layer0Bottom = Math.max(...layerBoxes[0].map(box => box.y + box.height));
     const busY0 = (layer0Bottom + focusTopY) / 2;
-    const centerXs0 = layer0Boxes.map(box => box.x);
-
-    edges += Line({ x1: Math.min(...centerXs0, 0), y1: busY0, x2: Math.max(...centerXs0, 0), y2: busY0, stroke: Theme.colors.edge });
-    for (const box of layer0Boxes) {
-        edges += Line({ x1: box.x, y1: box.y + box.height, x2: box.x, y2: busY0, stroke: Theme.colors.edge });
-    }
-    edges += Line({ x1: 0, y1: busY0, x2: 0, y2: focusTopY, stroke: Theme.colors.edge });
+    const layer0Connections: EdgeConnection[] = orderedLayers[0].map((_, i) => ({
+        parentX:      layerBoxes[0][i].x,
+        parentBottom: layerBoxes[0][i].y + layerBoxes[0][i].height,
+        childX:       0,
+        childTop:     focusTopY,
+    }));
+    edges += drawConnections(layer0Connections, busY0, Theme.colors.edgePalette);
 
     for (let i = 1; i < layerBoxes.length; i++) {
         const parentNodes = orderedLayers[i];
@@ -289,17 +288,16 @@ export function renderDescendantEdges(
 
     if (layerBoxes.length === 0) return edges;
 
-    // Layer 0: shared bus — focus connects to all direct children via a single horizontal bus
-    const layer0Boxes = layerBoxes[0];
-    const layer0Top = Math.min(...layer0Boxes.map(box => box.y));
+    // Layer 0: focus → direct children, drawn with palette colors for visibility
+    const layer0Top = Math.min(...layerBoxes[0].map(box => box.y));
     const busY0 = (focusBottomY + layer0Top) / 2;
-    const centerXs0 = layer0Boxes.map(box => box.x);
-
-    edges += Line({ x1: 0, y1: focusBottomY, x2: 0, y2: busY0, stroke: Theme.colors.edge });
-    edges += Line({ x1: Math.min(...centerXs0, 0), y1: busY0, x2: Math.max(...centerXs0, 0), y2: busY0, stroke: Theme.colors.edge });
-    for (const box of layer0Boxes) {
-        edges += Line({ x1: box.x, y1: busY0, x2: box.x, y2: box.y, stroke: Theme.colors.edge });
-    }
+    const layer0Connections: EdgeConnection[] = orderedLayers[0].map((_, i) => ({
+        parentX:      0,
+        parentBottom: focusBottomY,
+        childX:       layerBoxes[0][i].x,
+        childTop:     layerBoxes[0][i].y,
+    }));
+    edges += drawConnections(layer0Connections, busY0, Theme.colors.edgePalette);
 
     // Layers i > 0: collect all connections for this gap, assign lanes, draw.
     for (let i = 1; i < layerBoxes.length; i++) {
