@@ -142,9 +142,7 @@ export function renderViewportScript(opts: { initialScale?: number } = {}): stri
   let lastX = 0;
   let lastY = 0;
 
-  let tx = window.innerWidth / 2;
-  let ty = window.innerHeight / 2;
-  let scale = ${initialScale};
+  const vscode = acquireVsCodeApi();
 
   const PAN_SENSITIVITY = ${UI.pan.sensitivity};
   const MIN_SCALE = ${UI.zoom.min};
@@ -152,13 +150,17 @@ export function renderViewportScript(opts: { initialScale?: number } = {}): stri
   const ZOOM_STEP = ${UI.zoom.step};
   const CLICK_THRESHOLD = 4;
 
-  const vscode = acquireVsCodeApi();
+  const currentState = vscode.getState();
+  let tx = currentState ? currentState.tx : window.innerWidth / 2;
+  let ty = currentState ? currentState.ty : window.innerHeight / 2;
+  let scale = currentState ? currentState.scale : ${initialScale};
 
   function update() {
     viewport.setAttribute(
       "transform",
       "translate(" + tx + "," + ty + ") scale(" + scale + ")"
     );
+    vscode.setState({ tx, ty, scale });
   }
 
   svg.style.cursor = "grab";
