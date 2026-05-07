@@ -10,6 +10,11 @@ export const UI = {
         borderRadius: 6,
         charWidth: 8.8,
         sectionTopPadding: 25,
+
+        filePathFontSize: 11,
+        filePathLineHeight: 16,
+        filePathPadding: 4,
+        filePathCharWidth: 6.5,
     },
 
     tree: {

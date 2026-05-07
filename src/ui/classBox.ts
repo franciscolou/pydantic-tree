@@ -1,6 +1,6 @@
 import type { ClassNode, RenderedBox } from '../types';
 import { Theme, UI } from '../config';
-import { ClassBox, Line, Text, TSpan, Group } from './components';
+import { ClassBox, Line, Text, TSpan } from './components';
 
 function navGroup(fileUri: string, line: number, content: string, role: 'class' | 'member' = 'member'): string {
     return `<g data-file="${fileUri}" data-line="${line}" data-pt-role="${role}" style="cursor:pointer">${content}</g>`;
@@ -180,6 +180,32 @@ export function computeMethodLayouts(node: ClassNode, wrapAt: number): MethodLay
             ],
         };
     });
+}
+
+/* =========================================================
+   FILE PATH
+========================================================= */
+
+function computeFilePathLines(fileUri: string, boxWidth: number): string[] {
+    const { sidePadding, filePathCharWidth } = UI.box;
+    const maxChars = Math.floor((boxWidth - sidePadding) / filePathCharWidth);
+    const path = decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
+    if (path.length <= maxChars) return [path];
+    const lines: string[] = [];
+    let remaining = path;
+    while (remaining.length > maxChars) {
+        let breakAt = remaining.lastIndexOf('/', maxChars);
+        if (breakAt <= 0) breakAt = maxChars;
+        else breakAt++;
+        lines.push(remaining.slice(0, breakAt));
+        remaining = remaining.slice(breakAt);
+    }
+    if (remaining) lines.push(remaining);
+    return lines.slice(0, 3);
+}
+
+function filePathSectionHeight(lines: string[]): number {
+    return UI.box.filePathPadding * 2 + lines.length * UI.box.filePathLineHeight;
 }
 
 /* =========================================================
@@ -378,6 +404,10 @@ export function renderClassBox(
     const layouts = computeMethodLayouts(node, wrapAt);
     const width = computeBoxWidth(node, layouts);
 
+    const fpLines = computeFilePathLines(node.fileUri, width);
+    const fpHeight = filePathSectionHeight(fpLines);
+    const { filePathFontSize, filePathLineHeight, filePathPadding } = UI.box;
+
     const contentStartY = headerHeight + sectionTopPadding;
     const { svg: attrSvg, endY: afterAttrs } = renderAttributes(node, contentStartY, inherited);
 
@@ -397,6 +427,24 @@ export function renderClassBox(
         fill: Theme.colors.panelBackground,
         stroke: Theme.colors.border,
     });
+
+    // File path floats above the box (negative y) so it doesn't affect box layout.
+    // It extends by borderRadius downward so the bottom rounded corners are hidden behind the panel.
+    const filePathBg = ClassBox({
+        x: 0, y: -fpHeight, width, height: fpHeight + borderRadius, borderRadius,
+        fill: Theme.colors.filePathBackground,
+        stroke: 'none',
+    });
+    const filePathTextSvg = fpLines.map((line, i) =>
+        Text({
+            x: 16,
+            y: -fpHeight + filePathPadding + (i + 1) * filePathLineHeight - 2,
+            fontSize: filePathFontSize,
+            fill: Theme.colors.filePathText,
+            children: escapeXml(line),
+        })
+    ).join('');
+    const filePathSection = `<g class="file-path-section">${filePathBg}${filePathTextSvg}</g>`;
 
     const header = ClassBox({
         x: 0, y: 0, width, height: headerHeight,
@@ -421,10 +469,9 @@ export function renderClassBox(
         `</clipPath></defs>`;
     const clippedContent = `<g clip-path="url(#${clipId})">${attrSvg}${dividerSvg}${methodSvg}</g>`;
 
-    const group = Group({
-        transform: `translate(${x - width / 2}, ${y})`,
-        children: clipDef + panel + header + title + clippedContent,
-    });
-
-    return { svg: group, width, height };
+    return {
+        svg: `<g data-pt-box transform="translate(${x - width / 2}, ${y})">${clipDef}${panel}${filePathSection}${header}${title}${clippedContent}</g>`,
+        width,
+        height,
+    };
 }

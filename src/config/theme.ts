@@ -7,6 +7,9 @@ export const Theme = {
         headerBackground: 'var(--pt-header-bg)',
         headerText:   'var(--pt-header-text)',
 
+        filePathBackground: 'var(--pt-filepath-bg)',
+        filePathText:       'var(--pt-filepath-text)',
+
         text:         'var(--pt-text)',
         type:         'var(--pt-type)',
         string:       'var(--pt-string)',

@@ -14,6 +14,10 @@ export function HtmlRoot(body: string): string {
       --pt-header-bg:   #4ec9b0;
       --pt-header-text: #000000;
 
+      /* File path section */
+      --pt-filepath-bg:   #1a1a1a;
+      --pt-filepath-text: #717171;
+
       /* Semantic syntax colors — dark theme defaults */
       --pt-type:     #4ec9b0;
       --pt-string:   #ce9178;
@@ -54,6 +58,9 @@ export function HtmlRoot(body: string): string {
 
       --pt-hover-underline:        rgba(0,0,0,0.85);
       --pt-hover-underline-member: rgba(0,0,0,0.30);
+
+      --pt-filepath-bg:   #e0e0e0;
+      --pt-filepath-text: #5a5a5a;
   }
 </style>
 </head>

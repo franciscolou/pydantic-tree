@@ -18,6 +18,15 @@ export function renderBaseStyles(): string {
         text-decoration: underline;
         text-decoration-color: var(--pt-hover-underline);
     }
+
+    .file-path-section {
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+    [data-pt-box]:hover .file-path-section,
+    #svgRoot.show-paths .file-path-section {
+        opacity: 1;
+    }
 </style>`;
 }
 
@@ -42,7 +51,13 @@ export function renderViewportScript(opts: { initialScale?: number } = {}): stri
   #find-close { border: none !important; color: #888 !important; padding: 2px 5px !important; }
   #find-close:hover { color: var(--pt-text) !important; background: transparent !important; }
   #find-input:focus { outline: 1px solid #007acc; }
+  #paths-toggle label { cursor: pointer; user-select: none; }
+  #paths-toggle input { cursor: pointer; }
 </style>
+<div id="paths-toggle" style="position:fixed; top:10px; right:12px; background:var(--pt-panel-bg); border:1px solid var(--pt-border); border-radius:6px; padding:6px 10px; display:flex; align-items:center; gap:6px; z-index:1000; box-shadow:0 4px 16px rgba(0,0,0,0.5)">
+  <input type="checkbox" id="show-paths-cb" />
+  <label for="show-paths-cb" style="color:var(--pt-text); font-size:12px;">File paths</label>
+</div>
 <div id="find-bar" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); background:var(--pt-panel-bg); border:1px solid var(--pt-border); border-radius:6px; padding:6px 10px; align-items:center; gap:8px; z-index:1000; box-shadow:0 4px 16px rgba(0,0,0,0.5)">
   <input id="find-input" type="text" placeholder="Find in tree…" autocomplete="off" spellcheck="false"
     style="background:var(--pt-bg); border:1px solid var(--pt-border); color:var(--pt-text); padding:4px 8px; border-radius:3px; outline:none; width:200px; font-size:13px; font-family:monospace" />
@@ -73,13 +88,24 @@ export function renderViewportScript(opts: { initialScale?: number } = {}): stri
   let tx = currentState ? currentState.tx : window.innerWidth / 2;
   let ty = currentState ? currentState.ty : window.innerHeight / 2;
   let scale = currentState ? currentState.scale : ${initialScale};
+  let showPaths = currentState ? (currentState.showPaths ?? false) : false;
+
+  const showPathsCb = document.getElementById('show-paths-cb');
+  showPathsCb.checked = showPaths;
+  if (showPaths) svg.classList.add('show-paths');
+
+  showPathsCb.addEventListener('change', () => {
+    showPaths = showPathsCb.checked;
+    svg.classList.toggle('show-paths', showPaths);
+    vscode.setState({ tx, ty, scale, showPaths });
+  });
 
   function update() {
     viewport.setAttribute(
       "transform",
       "translate(" + tx + "," + ty + ") scale(" + scale + ")"
     );
-    vscode.setState({ tx, ty, scale });
+    vscode.setState({ tx, ty, scale, showPaths });
   }
 
   svg.style.cursor = "grab";
