@@ -5,3 +5,7 @@ export * from './Group';
 export * from './Text';
 export * from './TSpan';
 export * from './HtmlRoot';
+export * from './NavGroup';
+export * from './ClipPath';
+export * from './FindBar';
+export * from './PathsToggle';

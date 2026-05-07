@@ -1,10 +1,6 @@
 import type { ClassNode, RenderedBox } from '../types';
 import { Theme, UI } from '../config';
-import { ClassBox, Line, Text, TSpan } from './components';
-
-function navGroup(fileUri: string, line: number, content: string, role: 'class' | 'member' = 'member'): string {
-    return `<g data-file="${fileUri}" data-line="${line}" data-pt-role="${role}" style="cursor:pointer">${content}</g>`;
-}
+import { ClassBox, Line, Text, TSpan, NavGroup, ClipPath, Group } from './components';
 
 /* =========================================================
    INHERITED NAMES
@@ -291,7 +287,7 @@ function renderAttributes(
                 return text;
             }).join('');
 
-            return navGroup(node.fileUri, attr.definedAtLine, firstText + contSvg);
+            return NavGroup({ fileUri: node.fileUri, line: attr.definedAtLine, role: 'member', children: firstText + contSvg });
         })
         .join('');
     return { svg, endY: y };
@@ -346,7 +342,7 @@ function renderMethodRows(
                         returnSvg,
                 });
                 y += lineHeight;
-                return navGroup(node.fileUri, method.definedAtLine, text);
+                return NavGroup({ fileUri: node.fileUri, line: method.definedAtLine, role: 'member', children: text });
             }
 
             const lines: string[] = [];
@@ -381,7 +377,7 @@ function renderMethodRows(
             }));
             y += lineHeight;
 
-            return navGroup(node.fileUri, method.definedAtLine, lines.join(''));
+            return NavGroup({ fileUri: node.fileUri, line: method.definedAtLine, role: 'member', children: lines.join('') });
         })
         .join('');
 
@@ -444,7 +440,7 @@ export function renderClassBox(
             children: escapeXml(line),
         })
     ).join('');
-    const filePathSection = `<g class="file-path-section">${filePathBg}${filePathTextSvg}</g>`;
+    const filePathSection = Group({ className: 'file-path-section', children: filePathBg + filePathTextSvg });
 
     const header = ClassBox({
         x: 0, y: 0, width, height: headerHeight,
@@ -452,25 +448,25 @@ export function renderClassBox(
         stroke: 'none',
     });
 
-    const title = navGroup(node.fileUri, node.definedAtLine, Text({
-        x: width / 2,
-        y: 22,
-        textAnchor: 'middle',
-        fontSize: Theme.font.size.header,
-        fontWeight: Theme.font.weight.bold,
-        fill: Theme.colors.headerText,
-        children: node.name,
-    }), 'class');
+    const title = NavGroup({
+        fileUri: node.fileUri, line: node.definedAtLine, role: 'class',
+        children: Text({
+            x: width / 2,
+            y: 22,
+            textAnchor: 'middle',
+            fontSize: Theme.font.size.header,
+            fontWeight: Theme.font.weight.bold,
+            fill: Theme.colors.headerText,
+            children: node.name,
+        }),
+    });
 
     const clipId = `clip-${node.name.replace(/\W/g, '_')}`;
-    const clipDef =
-        `<defs><clipPath id="${clipId}">` +
-        `<rect x="0" y="${headerHeight}" width="${width}" height="${height - headerHeight}"/>` +
-        `</clipPath></defs>`;
-    const clippedContent = `<g clip-path="url(#${clipId})">${attrSvg}${dividerSvg}${methodSvg}</g>`;
+    const clipDef = ClipPath({ id: clipId, x: 0, y: headerHeight, width, height: height - headerHeight });
+    const clippedContent = Group({ clipPath: `url(#${clipId})`, children: attrSvg + dividerSvg + methodSvg });
 
     return {
-        svg: `<g data-pt-box transform="translate(${x - width / 2}, ${y})">${clipDef}${panel}${filePathSection}${header}${title}${clippedContent}</g>`,
+        svg: Group({ dataPtBox: true, transform: `translate(${x - width / 2}, ${y})`, children: clipDef + panel + filePathSection + header + title + clippedContent }),
         width,
         height,
     };
