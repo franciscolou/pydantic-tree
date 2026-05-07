@@ -18,10 +18,8 @@ export async function scanWorkspaceClasses(
         try {
             const doc = await vscode.workspace.openTextDocument(uri);
             const classes = await extractClasses(doc);
-            for (const [name, node] of classes) {
-                if (!allClasses.has(name)) {
-                    allClasses.set(name, node);
-                }
+            for (const [id, node] of classes) {
+                allClasses.set(id, node);
             }
         } catch {
             // skip files that can't be parsed

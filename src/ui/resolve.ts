@@ -2,7 +2,7 @@ import type { ClassNode } from '../types';
 
 export function buildConnectedComponents(classes: Map<string, ClassNode>): ClassNode[][] {
     const parent = new Map<string, string>();
-    for (const name of classes.keys()) parent.set(name, name);
+    for (const id of classes.keys()) parent.set(id, id);
 
     const find = (x: string): string => {
         while (parent.get(x) !== x) {
@@ -12,18 +12,18 @@ export function buildConnectedComponents(classes: Map<string, ClassNode>): Class
         return x;
     };
 
-    for (const [name, node] of classes.entries()) {
+    for (const [id, node] of classes.entries()) {
         for (const base of node.bases) {
-            if (classes.has(base)) {
-                const rx = find(name), ry = find(base);
+            if (base.id && classes.has(base.id)) {
+                const rx = find(id), ry = find(base.id);
                 if (rx !== ry) parent.set(rx, ry);
             }
         }
     }
 
     const groups = new Map<string, ClassNode[]>();
-    for (const [name, node] of classes.entries()) {
-        const root = find(name);
+    for (const [id, node] of classes.entries()) {
+        const root = find(id);
         if (!groups.has(root)) groups.set(root, []);
         groups.get(root)!.push(node);
     }
@@ -32,26 +32,26 @@ export function buildConnectedComponents(classes: Map<string, ClassNode>): Class
 }
 
 export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
-    const nameSet = new Set(component.map(n => n.name));
+    const idSet = new Set(component.map(n => n.id));
 
     const inDeg = new Map<string, number>();
     const children = new Map<string, string[]>();
     for (const node of component) {
-        inDeg.set(node.name, node.bases.filter(b => nameSet.has(b)).length);
+        inDeg.set(node.id, node.bases.filter(b => b.id !== undefined && idSet.has(b.id)).length);
         for (const base of node.bases) {
-            if (nameSet.has(base)) {
-                if (!children.has(base)) children.set(base, []);
-                children.get(base)!.push(node.name);
+            if (base.id && idSet.has(base.id)) {
+                if (!children.has(base.id)) children.set(base.id, []);
+                children.get(base.id)!.push(node.id);
             }
         }
     }
 
     const dist = new Map<string, number>();
-    for (const node of component) dist.set(node.name, 0);
+    for (const node of component) dist.set(node.id, 0);
 
     const queue: string[] = [];
-    for (const [name, deg] of inDeg) {
-        if (deg === 0) queue.push(name);
+    for (const [id, deg] of inDeg) {
+        if (deg === 0) queue.push(id);
     }
 
     while (queue.length > 0) {
@@ -65,11 +65,11 @@ export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
     }
 
     const layerMap = new Map<number, ClassNode[]>();
-    const nodeByName = new Map(component.map(n => [n.name, n]));
-    for (const name of dist.keys()) {
-        const d = dist.get(name)!;
+    const nodeById = new Map(component.map(n => [n.id, n]));
+    for (const id of dist.keys()) {
+        const d = dist.get(id)!;
         if (!layerMap.has(d)) layerMap.set(d, []);
-        layerMap.get(d)!.push(nodeByName.get(name)!);
+        layerMap.get(d)!.push(nodeById.get(id)!);
     }
 
     const maxDist = dist.size > 0 ? Math.max(...dist.values()) : 0;
@@ -83,34 +83,34 @@ export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
 
 
 export function collectAncestors(
-    className: string,
+    classId: string,
     classes: Map<string, ClassNode>
 ): string[][] {
     // Collect all reachable ancestors
     const allAncestors = new Set<string>();
-    const stack: string[] = [className];
+    const stack: string[] = [classId];
     while (stack.length > 0) {
         const curr = stack.pop()!;
         for (const base of classes.get(curr)?.bases ?? []) {
-            if (classes.has(base) && !allAncestors.has(base)) {
-                allAncestors.add(base);
-                stack.push(base);
+            if (base.id && classes.has(base.id) && !allAncestors.has(base.id)) {
+                allAncestors.add(base.id);
+                stack.push(base.id);
             }
         }
     }
     if (allAncestors.size === 0) return [];
 
-    // Assign each ancestor its longest-path depth from className via Kahn's topological sort.
+    // Assign each ancestor its longest-path depth from classId via Kahn's topological sort.
     // Longest path ensures that if A is an ancestor of B, A is always placed in a higher layer than B,
     // even when A is also reachable via a shorter path (e.g. diamond inheritance).
-    const subgraph = new Set([className, ...allAncestors]);
+    const subgraph = new Set([classId, ...allAncestors]);
 
     // in-degree = number of children each node has within the subgraph
     const inDegree = new Map<string, number>();
     for (const n of subgraph) inDegree.set(n, 0);
     for (const n of subgraph) {
         for (const base of classes.get(n)?.bases ?? []) {
-            if (subgraph.has(base)) inDegree.set(base, inDegree.get(base)! + 1);
+            if (base.id && subgraph.has(base.id)) inDegree.set(base.id, inDegree.get(base.id)! + 1);
         }
     }
 
@@ -119,18 +119,18 @@ export function collectAncestors(
 
     const queue: string[] = [];
     for (const [n, deg] of inDegree) {
-        if (deg === 0) queue.push(n); // only className starts here
+        if (deg === 0) queue.push(n); // only classId starts here
     }
 
     while (queue.length > 0) {
         const curr = queue.shift()!;
         const d = dist.get(curr)!;
         for (const base of classes.get(curr)?.bases ?? []) {
-            if (!subgraph.has(base)) continue;
-            if (d + 1 > dist.get(base)!) dist.set(base, d + 1);
-            const newDeg = inDegree.get(base)! - 1;
-            inDegree.set(base, newDeg);
-            if (newDeg === 0) queue.push(base);
+            if (!base.id || !subgraph.has(base.id)) continue;
+            if (d + 1 > dist.get(base.id)!) dist.set(base.id, d + 1);
+            const newDeg = inDegree.get(base.id)! - 1;
+            inDegree.set(base.id, newDeg);
+            if (newDeg === 0) queue.push(base.id);
         }
     }
 
@@ -152,23 +152,23 @@ export function collectAncestors(
 }
 
 export function collectDescendants(
-    className: string,
+    classId: string,
     classes: Map<string, ClassNode>
 ): string[][] {
     const layers: string[][] = [];
     const visited = new Set<string>();
 
-    let currentLevelSet = new Set([className]);
+    let currentLevelSet = new Set([classId]);
 
     while (true) {
         const nextLevel: string[] = [];
 
-        for (const [name, node] of classes.entries()) {
-            if (visited.has(name)) continue;
+        for (const [id, node] of classes.entries()) {
+            if (visited.has(id)) continue;
 
-            if (node.bases?.some(base => currentLevelSet.has(base))) {
-                visited.add(name);
-                nextLevel.push(name);
+            if (node.bases?.some(b => b.id !== undefined && currentLevelSet.has(b.id))) {
+                visited.add(id);
+                nextLevel.push(id);
             }
         }
 

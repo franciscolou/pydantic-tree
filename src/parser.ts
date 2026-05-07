@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ClassNode, MethodParam, MethodDef, AttrDef } from './types';
+import type { ClassNode, MethodParam, MethodDef, AttrDef, BaseRef } from './types';
 
 /* =========================================================
    REGEX (used only on individual declaration lines)
@@ -12,6 +12,16 @@ const METHOD_DECL_REGEX =
 
 const ATTR_DECL_REGEX =
     /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=\n]+?)(?:\s*=\s*(.+))?$/;
+
+const BARE_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_.]*/;
+
+/* =========================================================
+   IDENTIFIERS
+   ========================================================= */
+
+export function makeClassId(fileUri: string, name: string, line: number): string {
+    return `${fileUri}#${name}@${line}`;
+}
 
 /* =========================================================
    DOCUMENT SYMBOLS
@@ -96,12 +106,12 @@ function extractAttribute(
     };
 }
 
-function extractClassFromSymbol(
+async function extractClassFromSymbol(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
-): ClassNode {
+): Promise<ClassNode> {
     const declLineText = document.lineAt(sym.range.start.line).text;
-    const bases = parseBases(declLineText);
+    const bases = await resolveBases(declLineText, document, sym);
 
     const methods: MethodDef[] = [];
     const attributes: AttrDef[] = [];
@@ -126,6 +136,7 @@ function extractClassFromSymbol(
     }
 
     return {
+        id: makeClassId(document.uri.toString(), sym.name, sym.range.start.line),
         name: sym.name,
         bases,
         attributes,
@@ -148,6 +159,12 @@ const symbolCache = new Map<
    ENTRY POINTS
    ========================================================= */
 
+/**
+ * Returns the classes defined in `document`, keyed by their universal class
+ * IDs. Bases are resolved via the language server so that aliased imports
+ * (`import X as Y`) and same-name classes from different files are
+ * disambiguated to the actual definition site.
+ */
 export async function extractClasses(
     document: vscode.TextDocument
 ): Promise<Map<string, ClassNode>> {
@@ -161,8 +178,8 @@ export async function extractClasses(
     const classes = new Map<string, ClassNode>();
     for (const sym of symbols) {
         if (sym.kind !== vscode.SymbolKind.Class) continue;
-        const node = extractClassFromSymbol(sym, document);
-        classes.set(node.name, node);
+        const node = await extractClassFromSymbol(sym, document);
+        classes.set(node.id, node);
     }
 
     symbolCache.set(key, { version: document.version, classes });
@@ -172,108 +189,149 @@ export async function extractClasses(
 /**
  * Builds a class map that includes the focus class, all its ancestors and
  * all descendants present in the current document — following base class
- * definitions across files when needed.
+ * definitions across files when needed. Keyed by class ID.
  */
 export async function buildInheritanceMap(
-    focusClass: string,
+    focusId: string,
     document: vscode.TextDocument
 ): Promise<Map<string, ClassNode>> {
-    const classes = await extractClasses(document);
+    const docClasses = await extractClasses(document);
 
-    const queue: Array<{ name: string; doc: vscode.TextDocument }> = [
-        { name: focusClass, doc: document },
-    ];
-    const visited = new Set<string>([focusClass]);
+    const merged = new Map<string, ClassNode>(docClasses);
+    const queue: string[] = [focusId];
+    const visited = new Set<string>([focusId]);
 
     while (queue.length > 0) {
-        const { name, doc } = queue.shift()!;
-        const node = classes.get(name);
+        const id = queue.shift()!;
+        const node = merged.get(id);
         if (!node) continue;
 
-        const symbols = await getDocumentSymbols(doc.uri);
-        const classSym = symbols?.find(
-            s => s.kind === vscode.SymbolKind.Class && s.name === name
-        );
-        if (!classSym) continue;
-
         for (const base of node.bases) {
-            if (visited.has(base)) continue;
-            visited.add(base);
+            if (!base.id || visited.has(base.id)) continue;
+            visited.add(base.id);
 
-            if (classes.has(base)) {
-                queue.push({ name: base, doc });
+            if (merged.has(base.id)) {
+                queue.push(base.id);
                 continue;
             }
 
-            const resolved = await resolveBaseClass(base, doc, classSym);
+            const resolved = await loadClassById(base.id);
             if (!resolved) continue;
 
-            classes.set(resolved.node.name, resolved.node);
-            queue.push({ name: resolved.node.name, doc: resolved.doc });
+            merged.set(resolved.id, resolved);
+            queue.push(resolved.id);
         }
     }
 
-    return classes;
+    return merged;
 }
 
 /* =========================================================
-   CROSS-FILE RESOLUTION
+   ID RESOLUTION
    ========================================================= */
 
-async function resolveBaseClass(
-    baseName: string,
-    fromDoc: vscode.TextDocument,
+/**
+ * Loads the class node referenced by an ID by parsing the file it lives in.
+ * Returns undefined if the file can't be opened or the class is no longer
+ * present at that location.
+ */
+async function loadClassById(id: string): Promise<ClassNode | undefined> {
+    const hashIdx = id.indexOf('#');
+    if (hashIdx < 0) return undefined;
+    const fileUri = id.slice(0, hashIdx);
+
+    let targetDoc: vscode.TextDocument;
+    try {
+        targetDoc = await vscode.workspace.openTextDocument(vscode.Uri.parse(fileUri));
+    } catch {
+        return undefined;
+    }
+    const targetClasses = await extractClasses(targetDoc);
+    return targetClasses.get(id);
+}
+
+/**
+ * Resolves the bases of a class declaration into BaseRefs.
+ *
+ * For each base expression, the bare class identifier is located on the
+ * declaration line and `executeDefinitionProvider` is asked where it points
+ * to. The resulting position is used to compute the universal ID of the
+ * actual class being inherited from. This naturally disambiguates classes
+ * with the same name across files and resolves aliased imports.
+ */
+async function resolveBases(
+    lineText: string,
+    document: vscode.TextDocument,
     classSymbol: vscode.DocumentSymbol
-): Promise<{ doc: vscode.TextDocument; node: ClassNode } | null> {
-    const lineText = fromDoc.lineAt(classSymbol.range.start.line).text;
+): Promise<BaseRef[]> {
+    const match = lineText.match(CLASS_BASES_REGEX);
+    if (!match?.[1]?.trim()) return [];
 
+    const rawBases = match[1].split(',').map(b => b.trim()).filter(Boolean);
     const parenIdx = lineText.indexOf('(');
-    if (parenIdx < 0) return null;
+    if (parenIdx < 0) return rawBases.map(name => ({ name }));
 
-    const baseIdx = lineText.indexOf(baseName, parenIdx);
-    if (baseIdx < 0) return null;
+    let searchFrom = parenIdx;
+    return Promise.all(rawBases.map(async raw => {
+        const bareName = raw.match(BARE_NAME_REGEX)?.[0] ?? raw;
+        const idx = lineText.indexOf(bareName, searchFrom);
+        if (idx < 0) return { name: raw };
+        searchFrom = idx + bareName.length;
 
-    const position = new vscode.Position(
-        classSymbol.range.start.line,
-        baseIdx
-    );
+        const id = await resolveBaseId(
+            classSymbol.range.start.line,
+            idx,
+            document
+        );
+        return { name: raw, id };
+    }));
+}
 
+async function resolveBaseId(
+    line: number,
+    column: number,
+    fromDoc: vscode.TextDocument
+): Promise<string | undefined> {
+    const position = new vscode.Position(line, column);
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
         'vscode.executeDefinitionProvider',
         fromDoc.uri,
         position
     );
-
-    if (!locations?.length) return null;
+    if (!locations?.length) return undefined;
 
     const loc = locations[0];
-    const targetDoc = await vscode.workspace.openTextDocument(loc.uri);
     const targetSymbols = await getDocumentSymbols(loc.uri);
-    if (!targetSymbols) return null;
+    if (!targetSymbols) return undefined;
 
-    const targetSym = targetSymbols.find(
-        s => s.kind === vscode.SymbolKind.Class && s.name === baseName
-    );
-    if (!targetSym) return null;
+    const targetSym = findEnclosingClass(targetSymbols, loc.range.start);
+    if (!targetSym) return undefined;
 
-    return {
-        doc: targetDoc,
-        node: extractClassFromSymbol(targetSym, targetDoc),
-    };
+    return makeClassId(loc.uri.toString(), targetSym.name, targetSym.range.start.line);
+}
+
+function findEnclosingClass(
+    symbols: vscode.DocumentSymbol[],
+    pos: vscode.Position
+): vscode.DocumentSymbol | undefined {
+    for (const sym of symbols) {
+        if (sym.kind === vscode.SymbolKind.Class && sym.range.contains(pos)) {
+            return sym;
+        }
+    }
+    // Fallback: definition might land on a name token whose range is the
+    // selectionRange, not the full class range. Try selectionRange match.
+    for (const sym of symbols) {
+        if (sym.kind === vscode.SymbolKind.Class && sym.selectionRange.contains(pos)) {
+            return sym;
+        }
+    }
+    return undefined;
 }
 
 /* =========================================================
    HELPERS
    ========================================================= */
-
-function parseBases(lineText: string): string[] {
-    const match = lineText.match(CLASS_BASES_REGEX);
-    if (!match?.[1]?.trim()) return [];
-    return match[1]
-        .split(',')
-        .map(b => b.trim())
-        .filter(Boolean);
-}
 
 function splitParams(raw: string): string[] {
     const parts: string[] = [];

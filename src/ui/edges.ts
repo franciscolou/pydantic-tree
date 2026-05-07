@@ -214,7 +214,7 @@ export function renderAncestorEdges(
             const childNodes = orderedLayers[i - 1];
             const childBoxes = layerBoxes[i - 1];
             childNodes.forEach((childNode, ci) => {
-                if ((childNode.bases ?? []).includes(parentNode.name)) {
+                if ((childNode.bases ?? []).some(b => b.id === parentNode.id)) {
                     adjacentConnections.push({
                         parentX: parentBox.x,
                         parentBottom: parentBox.y + parentBox.height,
@@ -244,7 +244,7 @@ export function renderAncestorEdges(
 
                 const children = childNodes
                     .map((childNode, ci) => ({ childNode, childBox: childBoxes[ci] }))
-                    .filter(({ childNode }) => (childNode.bases ?? []).includes(parentNode.name));
+                    .filter(({ childNode }) => (childNode.bases ?? []).some(b => b.id === parentNode.id));
 
                 if (children.length === 0) continue;
 
@@ -315,7 +315,7 @@ export function renderDescendantEdges(
         parentNodes.forEach((parentNode, j) => {
             const parentBox = parentLayer[j];
             childNodes.forEach((childNode, k) => {
-                if ((childNode.bases ?? []).includes(parentNode.name)) {
+                if ((childNode.bases ?? []).some(b => b.id === parentNode.id)) {
                     connections.push({
                         parentX: parentBox.x,
                         parentBottom: parentBox.y + parentBox.height,

@@ -18,9 +18,15 @@ export interface MethodDef {
     definedAtLine: number;
 }
 
-export interface ClassNode {
+export interface BaseRef {
     name: string;
-    bases: string[];
+    id?: string;
+}
+
+export interface ClassNode {
+    id: string;
+    name: string;
+    bases: BaseRef[];
     attributes: AttrDef[];
     methods: MethodDef[];
     definedAtLine: number;

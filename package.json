@@ -16,7 +16,7 @@
     "contributes": {
         "commands": [
             {
-                "command": "pytree.showClass",
+                "command": "pytree.showClassTree",
                 "title": "PyTree: Class Tree"
             },
             {
@@ -30,7 +30,7 @@
         ],
         "keybindings": [
             {
-                "command": "pytree.showClass",
+                "command": "pytree.showClassTree",
                 "key": "ctrl+alt+space",
                 "when": "editorTextFocus && editorLangId == python"
             }

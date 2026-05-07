@@ -16,7 +16,7 @@ ${formatMethods(node)}
 }
 
 function formatBases(node: ClassNode): string {
-    return node.bases.length ? node.bases.join(', ') : Messages.hover.noBases;
+    return node.bases.length ? node.bases.map(b => b.name).join(', ') : Messages.hover.noBases;
 }
 
 function formatAttributes(node: ClassNode): string {

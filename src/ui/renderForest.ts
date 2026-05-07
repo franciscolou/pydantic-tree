@@ -45,7 +45,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
     for (let i = 0; i < layers.length - 1; i++) {
         layers[i].forEach((parent, pi) => {
             layers[i + 1].forEach((child, ci) => {
-                if ((child.bases ?? []).includes(parent.name)) {
+                if ((child.bases ?? []).some(b => b.id === parent.id)) {
                     all.push({
                         parentX: layerBoxes[i][pi].x,
                         parentBottom: layerBoxes[i][pi].y + layerBoxes[i][pi].height,
@@ -61,7 +61,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
         for (let j = i + 2; j < layers.length; j++) {
             layers[i].forEach((parent, pi) => {
                 layers[j].forEach((child, ci) => {
-                    if ((child.bases ?? []).includes(parent.name)) {
+                    if ((child.bases ?? []).some(b => b.id === parent.id)) {
                         all.push({
                             parentX: layerBoxes[i][pi].x,
                             parentBottom: layerBoxes[i][pi].y + layerBoxes[i][pi].height,
@@ -269,7 +269,7 @@ export function renderForestSVG(
             boxesSvg += svgs.join('');
             layerBoxes.push(positions);
             currentY += Math.max(...positions.map(p => p.height)) + verticalGap;
-            parentPositions = new Map(ordered.map((node, i) => [node.name, positions[i].x]));
+            parentPositions = new Map(ordered.map((node, i) => [node.id, positions[i].x]));
         }
 
         edgesSvg += renderComponentEdges(layers, layerBoxes);

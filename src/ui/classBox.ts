@@ -13,16 +13,20 @@ export function collectInheritedNames(
     const attrs = new Set<string>();
     const methods = new Set<string>();
     const visited = new Set<string>();
-    const stack = [...node.bases];
+    const stack: string[] = node.bases
+        .map(b => b.id)
+        .filter((id): id is string => id !== undefined);
     while (stack.length) {
-        const name = stack.pop()!;
-        if (visited.has(name)) continue;
-        visited.add(name);
-        const base = allNodes.get(name);
+        const id = stack.pop()!;
+        if (visited.has(id)) continue;
+        visited.add(id);
+        const base = allNodes.get(id);
         if (!base) continue;
         for (const attr of base.attributes) attrs.add(attr.name);
         for (const method of base.methods) methods.add(method.name);
-        stack.push(...base.bases);
+        for (const b of base.bases) {
+            if (b.id) stack.push(b.id);
+        }
     }
     return { attrs, methods };
 }
@@ -461,7 +465,7 @@ export function renderClassBox(
         }),
     });
 
-    const clipId = `clip-${node.name.replace(/\W/g, '_')}`;
+    const clipId = `clip-${node.id.replace(/\W/g, '_')}`;
     const clipDef = ClipPath({ id: clipId, x: 0, y: headerHeight, width, height: height - headerHeight });
     const clippedContent = Group({ clipPath: `url(#${clipId})`, children: attrSvg + dividerSvg + methodSvg });
 

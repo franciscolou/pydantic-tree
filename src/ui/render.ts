@@ -48,9 +48,9 @@ export function renderClassTreeSVG(
     const { verticalGap, horizontalGap } = UI.tree;
 
     const allNodes = new Map<string, ClassNode>();
-    allNodes.set(focus.name, focus);
-    for (const layer of ancestorLayers) for (const node of layer) allNodes.set(node.name, node);
-    for (const layer of descendantLayers) for (const node of layer) allNodes.set(node.name, node);
+    allNodes.set(focus.id, focus);
+    for (const layer of ancestorLayers) for (const node of layer) allNodes.set(node.id, node);
+    for (const layer of descendantLayers) for (const node of layer) allNodes.set(node.id, node);
 
     // Focus box at origin
     const focusRendered = renderClassBox(focus, 0, 0, collectInheritedNames(focus, allNodes));
@@ -63,7 +63,7 @@ export function renderClassTreeSVG(
     let boxesSvg = focusRendered.svg;
 
     let prevAncestorLayer: ClassNode[] = [focus];
-    let prevAncestorPositions = new Map<string, number>([[focus.name, 0]]);
+    let prevAncestorPositions = new Map<string, number>([[focus.id, 0]]);
 
     for (const layer of ancestorLayers) {
         const ordered = orderByChildBarycenter(layer, prevAncestorLayer, prevAncestorPositions);
@@ -72,7 +72,7 @@ export function renderClassTreeSVG(
         const { svgs, positions } = positionLayer(ordered, currentY, allNodes, horizontalGap);
         boxesSvg += svgs.join('');
         ancestorLayerBoxes.push(positions);
-        prevAncestorPositions = new Map(ordered.map((node, i) => [node.name, positions[i].x]));
+        prevAncestorPositions = new Map(ordered.map((node, i) => [node.id, positions[i].x]));
         prevAncestorLayer = ordered;
     }
 
@@ -82,7 +82,7 @@ export function renderClassTreeSVG(
     const descendantLayerBoxes: BoxMeasures[][] = [];
     const orderedDescendantLayers: ClassNode[][] = [];
 
-    let parentPositions = new Map<string, number>([[focus.name, 0]]);
+    let parentPositions = new Map<string, number>([[focus.id, 0]]);
 
     for (const layer of descendantLayers) {
         const ordered = orderByParentBarycenter(layer, parentPositions);
@@ -91,7 +91,7 @@ export function renderClassTreeSVG(
         boxesSvg += svgs.join('');
         currentY += Math.max(...positions.map(box => box.height)) + verticalGap;
         descendantLayerBoxes.push(positions);
-        parentPositions = new Map(ordered.map((node, i) => [node.name, positions[i].x]));
+        parentPositions = new Map(ordered.map((node, i) => [node.id, positions[i].x]));
     }
 
     // Draw edges

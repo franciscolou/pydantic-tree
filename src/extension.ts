@@ -38,15 +38,15 @@ function registerHoverProvider(): vscode.Disposable {
 }
 
 function registerShowClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand('pydanticTree.showClass', () => showClassTree(context));
+    return vscode.commands.registerCommand('pytree.showClassTree', () => showClassTree(context));
 }
 
 function registerShowCompleteClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand('pydanticTree.showCompleteClassTree', () => showCompleteClassTree(context));
+    return vscode.commands.registerCommand('pytree.showCompleteClassTree', () => showCompleteClassTree(context));
 }
 
 function registerShowProjectTreeCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand('pydanticTree.showProjectTree', () => showProjectTree(context));
+    return vscode.commands.registerCommand('pytree.showProjectTree', () => showProjectTree(context));
 }
 
 /* =========================================================
@@ -65,12 +65,12 @@ async function showClassTree(context: vscode.ExtensionContext) {
         return;
     }
 
-    const classes = await buildInheritanceMap(focusNode.name, document);
-    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.name, classes), classes);
+    const classes = await buildInheritanceMap(focusNode.id, document);
+    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.id, classes), classes);
 
     openWebview(
         context,
-        'pydanticClassTree',
+        'pytreeClassTree',
         Messages.titles.classTree(focusNode.name),
         renderClassTreeSVG(focusNode, ancestors, [])
     );
@@ -88,24 +88,24 @@ async function showCompleteClassTree(context: vscode.ExtensionContext) {
         return;
     }
 
-    let classes = await buildInheritanceMap(focusNode.name, document);
+    let classes = await buildInheritanceMap(focusNode.id, document);
 
     await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: Messages.titles.scanningFiles, cancellable: false },
         async progress => {
             const allClasses = await scanWorkspaceClasses(progress);
-            for (const [name, node] of allClasses) {
-                if (!classes.has(name)) classes.set(name, node);
+            for (const [id, node] of allClasses) {
+                if (!classes.has(id)) classes.set(id, node);
             }
         }
     );
 
-    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.name, classes), classes);
-    const descendants = resolveLayeredNodes(collectDescendants(focusNode.name, classes), classes);
+    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.id, classes), classes);
+    const descendants = resolveLayeredNodes(collectDescendants(focusNode.id, classes), classes);
 
     openWebview(
         context,
-        'pydanticClassTree',
+        'pytreeClassTree',
         Messages.titles.classTree(focusNode.name),
         renderClassTreeSVG(focusNode, ancestors, descendants)
     );
@@ -135,7 +135,7 @@ async function showProjectTree(context: vscode.ExtensionContext) {
 
     openWebview(
         context,
-        'pydanticProjectTree',
+        'pytreeProjectTree',
         Messages.titles.projectTree,
         renderForestSVG(componentLayers, allClasses)
     );
@@ -153,7 +153,17 @@ async function getClassUnderCursor(
     if (!range) return;
     const word = document.getText(range);
     const classes = await extractClasses(document);
-    return classes.get(word);
+    // The map is keyed by class ID; resolve by name within this document.
+    // If the cursor lands on a class declaration line, prefer that class so
+    // the right node is picked when this file declares multiple classes that
+    // happen to share a leading word.
+    for (const node of classes.values()) {
+        if (node.name === word && node.definedAtLine === position.line) return node;
+    }
+    for (const node of classes.values()) {
+        if (node.name === word) return node;
+    }
+    return undefined;
 }
 
 function resolveLayeredNodes(
