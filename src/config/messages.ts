@@ -1,6 +1,6 @@
 export const Messages = {
-    noClassUnderCursor: 'Nenhuma classe encontrada sob o cursor.',
-    noClassesFound: 'Nenhuma classe Python encontrada no workspace.',
+    noClassUnderCursor: 'No class found under cursor.',
+    noClassesFound: 'No Python classes found in the workspace.',
 
     hover: {
         noBases: 'nenhuma',
@@ -9,8 +9,8 @@ export const Messages = {
     },
 
     titles: {
-        classTree: (name: string) => `Herança: ${name}`,
-        projectTree: 'Pydantic: Árvore do Projeto',
-        scanningFiles: 'Pydantic Tree: escaneando arquivos...',
+        classTree: (name: string) => `Inheritance: ${name}`,
+        projectTree: 'PyTree: Project Tree',
+        scanningFiles: 'PyTree Tree: scanning files...',
     },
 } as const;

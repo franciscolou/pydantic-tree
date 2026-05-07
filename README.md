@@ -1,6 +1,6 @@
-# pydantic-class-tree README
+# pytree README
 
-This is the README for your extension "pydantic-class-tree". After writing up a brief description, we recommend including the following sections.
+This is the README for your extension "pytree". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 

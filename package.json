@@ -1,6 +1,6 @@
 {
-    "name": "pydantic-tree",
-    "displayName": "Pydantic Tree",
+    "name": "pytree",
+    "displayName": "PyTree",
     "description": "Hover feature to quickly look up for inheritances of your class, methods, attributes and more.",
     "version": "0.0.1",
     "engines": {
@@ -16,21 +16,21 @@
     "contributes": {
         "commands": [
             {
-                "command": "pydanticTree.showClass",
-                "title": "Pydantic: Visualizar classe"
+                "command": "pytree.showClass",
+                "title": "PyTree: Class Tree"
             },
             {
-                "command": "pydanticTree.showFullClassTree",
-                "title": "Pydantic: Árvore completa da classe"
+                "command": "pytree.showCompleteClassTree",
+                "title": "PyTree: Complete Class Tree"
             },
             {
-                "command": "pydanticTree.showProjectTree",
-                "title": "Pydantic: Árvore do Projeto"
+                "command": "pytree.showProjectTree",
+                "title": "PyTree: Project Tree"
             }
         ],
         "keybindings": [
             {
-                "command": "pydanticTree.showClass",
+                "command": "pytree.showClass",
                 "key": "ctrl+alt+space",
                 "when": "editorTextFocus && editorLangId == python"
             }

@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         registerHoverProvider(),
         registerShowClassCommand(context),
-        registerShowFullClassCommand(context),
+        registerShowCompleteClassCommand(context),
         registerShowProjectTreeCommand(context)
     );
 }
@@ -41,8 +41,8 @@ function registerShowClassCommand(context: vscode.ExtensionContext): vscode.Disp
     return vscode.commands.registerCommand('pydanticTree.showClass', () => showClassTree(context));
 }
 
-function registerShowFullClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand('pydanticTree.showFullClassTree', () => showFullClassTree(context));
+function registerShowCompleteClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
+    return vscode.commands.registerCommand('pydanticTree.showCompleteClassTree', () => showCompleteClassTree(context));
 }
 
 function registerShowProjectTreeCommand(context: vscode.ExtensionContext): vscode.Disposable {
@@ -76,7 +76,7 @@ async function showClassTree(context: vscode.ExtensionContext) {
     );
 }
 
-async function showFullClassTree(context: vscode.ExtensionContext) {
+async function showCompleteClassTree(context: vscode.ExtensionContext) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
 
