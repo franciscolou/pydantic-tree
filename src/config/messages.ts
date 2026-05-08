@@ -10,7 +10,7 @@ export const Messages = {
     },
 
     status: {
-        scanningFiles: 'PyTree Tree: scanning files...',
+        scanningFiles: 'PyTree: scanning files...',
     },
 
     webView: {
