@@ -14,7 +14,7 @@ export function openWebview(
     );
     panel.iconPath = vscode.Uri.joinPath(
         context.extensionUri,
-        ...'assets/icon/pytree.svg'.split("/")
+        ...'assets/images/pytree.svg'.split("/")
     );
     panel.webview.html = html;
 
