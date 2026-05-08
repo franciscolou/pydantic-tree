@@ -1,13 +1,16 @@
-import { ClassNode } from "../../../types";
-import { Group, HtmlRoot, Svg } from "../../components";
-import { buildTreeLayout } from "./single";
-import { renderBaseStyles, renderViewportScript } from "../../utils/viewport";
-
+import { ClassNode } from '../../../types';
+import { Group, HtmlRoot, Svg } from '../../components';
+import { buildTreeLayout } from './single';
+import { renderBaseStyles, renderViewportScript } from '../../utils/viewport';
 
 const TREE_GAP = 300;
 
 export function renderMultiTree(
-    trees: Array<{ focus: ClassNode; ancestorLayers: ClassNode[][]; descendantLayers: ClassNode[][] }>
+    trees: Array<{
+        focus: ClassNode;
+        ancestorLayers: ClassNode[][];
+        descendantLayers: ClassNode[][];
+    }>
 ): string {
     const layouts = trees.map(t =>
         buildTreeLayout(t.focus, t.ancestorLayers, t.descendantLayers)
@@ -23,7 +26,10 @@ export function renderMultiTree(
 
     const allSvg = layouts
         .map((layout, i) =>
-            Group({ transform: `translate(${centersX[i]}, 0)`, children: layout.svg })
+            Group({
+                transform: `translate(${centersX[i]}, 0)`,
+                children: layout.svg,
+            })
         )
         .join('');
 
@@ -38,7 +44,6 @@ export function renderMultiTree(
                     transform: 'translate(0,0) scale(1)',
                     children: allSvg,
                 }),
-        }) +
-        renderViewportScript({ initialScale: 0.5 })
+        }) + renderViewportScript({ initialScale: 0.5 })
     );
 }

@@ -2,7 +2,10 @@ import * as vscode from 'vscode';
 import { ClassNode } from '../types';
 import { Messages } from '../config';
 import { scanWorkspaceClasses } from '../utils/scan';
-import { buildComponentLayers, buildConnectedComponents } from '../ui/utils/resolve';
+import {
+    buildComponentLayers,
+    buildConnectedComponents,
+} from '../ui/utils/resolve';
 import { openWebview } from '../utils/webview';
 import { renderProjectTree } from '../ui/render/trees/project';
 

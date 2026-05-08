@@ -1,4 +1,4 @@
-import * as ParserTypes from "./parser";
+import * as ParserTypes from './parser';
 
 export interface ClassNode {
     id: string;

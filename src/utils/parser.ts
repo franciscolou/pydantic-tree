@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
-import type { ClassNode, MethodParam, MethodDef, AttrDef, BaseRef } from '../types';
+import type {
+    ClassNode,
+    MethodParam,
+    MethodDef,
+    AttrDef,
+    BaseRef,
+} from '../types';
 
 /* =========================================================
    REGEX (used only on individual declaration lines)
@@ -19,7 +25,11 @@ const BARE_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_.]*/;
    IDENTIFIERS
    ========================================================= */
 
-export function makeClassId(fileUri: string, name: string, line: number): string {
+export function makeClassId(
+    fileUri: string,
+    name: string,
+    line: number
+): string {
     return `${fileUri}#${name}@${line}`;
 }
 
@@ -69,8 +79,11 @@ function extractMethod(
 function bracketDepth(text: string): number {
     let depth = 0;
     for (const ch of text) {
-        if (ch === '(' || ch === '[' || ch === '{') {depth++;}
-        else if (ch === ')' || ch === ']' || ch === '}') {depth--;}
+        if (ch === '(' || ch === '[' || ch === '{') {
+            depth++;
+        } else if (ch === ')' || ch === ']' || ch === '}') {
+            depth--;
+        }
     }
     return depth;
 }
@@ -89,7 +102,11 @@ function extractAttribute(
         const parts = [match[3].trim()];
         let depth = bracketDepth(parts[0]);
         let l = sym.range.start.line + 1;
-        while (depth > 0 && l < document.lineCount && l <= sym.range.start.line + 20) {
+        while (
+            depth > 0 &&
+            l < document.lineCount &&
+            l <= sym.range.start.line + 20
+        ) {
             const rawLine = document.lineAt(l).text;
             parts.push(rawLine.slice(baseIndent).trimEnd());
             depth += bracketDepth(rawLine);
@@ -136,7 +153,11 @@ async function extractClassFromSymbol(
     }
 
     return {
-        id: makeClassId(document.uri.toString(), sym.name, sym.range.start.line),
+        id: makeClassId(
+            document.uri.toString(),
+            sym.name,
+            sym.range.start.line
+        ),
         name: sym.name,
         bases,
         attributes,
@@ -170,14 +191,20 @@ export async function extractClasses(
 ): Promise<Map<string, ClassNode>> {
     const key = document.uri.toString();
     const cached = symbolCache.get(key);
-    if (cached?.version === document.version) {return cached.classes;}
+    if (cached?.version === document.version) {
+        return cached.classes;
+    }
 
     const symbols = await getDocumentSymbols(document.uri);
-    if (!symbols) {return new Map();}
+    if (!symbols) {
+        return new Map();
+    }
 
     const classes = new Map<string, ClassNode>();
     for (const sym of symbols) {
-        if (sym.kind !== vscode.SymbolKind.Class) {continue;}
+        if (sym.kind !== vscode.SymbolKind.Class) {
+            continue;
+        }
         const node = await extractClassFromSymbol(sym, document);
         classes.set(node.id, node);
     }
@@ -204,10 +231,14 @@ export async function buildInheritanceMap(
     while (queue.length > 0) {
         const id = queue.shift()!;
         const node = merged.get(id);
-        if (!node) {continue;}
+        if (!node) {
+            continue;
+        }
 
         for (const base of node.bases) {
-            if (!base.id || visited.has(base.id)) {continue;}
+            if (!base.id || visited.has(base.id)) {
+                continue;
+            }
             visited.add(base.id);
 
             if (merged.has(base.id)) {
@@ -216,7 +247,9 @@ export async function buildInheritanceMap(
             }
 
             const resolved = await loadClassById(base.id);
-            if (!resolved) {continue;}
+            if (!resolved) {
+                continue;
+            }
 
             merged.set(resolved.id, resolved);
             queue.push(resolved.id);
@@ -237,12 +270,16 @@ export async function buildInheritanceMap(
  */
 async function loadClassById(id: string): Promise<ClassNode | undefined> {
     const hashIdx = id.indexOf('#');
-    if (hashIdx < 0) {return undefined;}
+    if (hashIdx < 0) {
+        return undefined;
+    }
     const fileUri = id.slice(0, hashIdx);
 
     let targetDoc: vscode.TextDocument;
     try {
-        targetDoc = await vscode.workspace.openTextDocument(vscode.Uri.parse(fileUri));
+        targetDoc = await vscode.workspace.openTextDocument(
+            vscode.Uri.parse(fileUri)
+        );
     } catch {
         return undefined;
     }
@@ -265,26 +302,37 @@ async function resolveBases(
     classSymbol: vscode.DocumentSymbol
 ): Promise<BaseRef[]> {
     const match = lineText.match(CLASS_BASES_REGEX);
-    if (!match?.[1]?.trim()) {return [];}
+    if (!match?.[1]?.trim()) {
+        return [];
+    }
 
-    const rawBases = match[1].split(',').map(b => b.trim()).filter(Boolean);
+    const rawBases = match[1]
+        .split(',')
+        .map(b => b.trim())
+        .filter(Boolean);
     const parenIdx = lineText.indexOf('(');
-    if (parenIdx < 0) {return rawBases.map(name => ({ name }));}
+    if (parenIdx < 0) {
+        return rawBases.map(name => ({ name }));
+    }
 
     let searchFrom = parenIdx;
-    return Promise.all(rawBases.map(async raw => {
-        const bareName = raw.match(BARE_NAME_REGEX)?.[0] ?? raw;
-        const idx = lineText.indexOf(bareName, searchFrom);
-        if (idx < 0) {return { name: raw };}
-        searchFrom = idx + bareName.length;
+    return Promise.all(
+        rawBases.map(async raw => {
+            const bareName = raw.match(BARE_NAME_REGEX)?.[0] ?? raw;
+            const idx = lineText.indexOf(bareName, searchFrom);
+            if (idx < 0) {
+                return { name: raw };
+            }
+            searchFrom = idx + bareName.length;
 
-        const id = await resolveBaseId(
-            classSymbol.range.start.line,
-            idx,
-            document
-        );
-        return { name: raw, id };
-    }));
+            const id = await resolveBaseId(
+                classSymbol.range.start.line,
+                idx,
+                document
+            );
+            return { name: raw, id };
+        })
+    );
 }
 
 async function resolveBaseId(
@@ -298,16 +346,26 @@ async function resolveBaseId(
         fromDoc.uri,
         position
     );
-    if (!locations?.length) {return undefined;}
+    if (!locations?.length) {
+        return undefined;
+    }
 
     const loc = locations[0];
     const targetSymbols = await getDocumentSymbols(loc.uri);
-    if (!targetSymbols) {return undefined;}
+    if (!targetSymbols) {
+        return undefined;
+    }
 
     const targetSym = findEnclosingClass(targetSymbols, loc.range.start);
-    if (!targetSym) {return undefined;}
+    if (!targetSym) {
+        return undefined;
+    }
 
-    return makeClassId(loc.uri.toString(), targetSym.name, targetSym.range.start.line);
+    return makeClassId(
+        loc.uri.toString(),
+        targetSym.name,
+        targetSym.range.start.line
+    );
 }
 
 function findEnclosingClass(
@@ -322,7 +380,10 @@ function findEnclosingClass(
     // Fallback: definition might land on a name token whose range is the
     // selectionRange, not the full class range. Try selectionRange match.
     for (const sym of symbols) {
-        if (sym.kind === vscode.SymbolKind.Class && sym.selectionRange.contains(pos)) {
+        if (
+            sym.kind === vscode.SymbolKind.Class &&
+            sym.selectionRange.contains(pos)
+        ) {
             return sym;
         }
     }
@@ -338,17 +399,29 @@ function splitParams(raw: string): string[] {
     let depth = 0;
     let current = '';
     for (const ch of raw) {
-        if (ch === '(' || ch === '[' || ch === '{') { depth++; current += ch; }
-        else if (ch === ')' || ch === ']' || ch === '}') { depth--; current += ch; }
-        else if (ch === ',' && depth === 0) { parts.push(current); current = ''; }
-        else { current += ch; }
+        if (ch === '(' || ch === '[' || ch === '{') {
+            depth++;
+            current += ch;
+        } else if (ch === ')' || ch === ']' || ch === '}') {
+            depth--;
+            current += ch;
+        } else if (ch === ',' && depth === 0) {
+            parts.push(current);
+            current = '';
+        } else {
+            current += ch;
+        }
     }
-    if (current) {parts.push(current);}
+    if (current) {
+        parts.push(current);
+    }
     return parts;
 }
 
 function parseParams(raw: string): MethodParam[] {
-    if (!raw.trim()) {return [];}
+    if (!raw.trim()) {
+        return [];
+    }
 
     return splitParams(raw)
         .map(p => p.trim())

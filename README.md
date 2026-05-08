@@ -66,13 +66,13 @@ Hovering over any class name in a Python file shows a small card with two clicka
 
 Every tree view is fully interactive:
 
-| Action | How |
-|---|---|
-| **Pan** | Click and drag |
-| **Zoom** | Scroll wheel (30 % – 300 %) |
-| **Find** | `Ctrl+F` / `Cmd+F` — searches class names, highlights all matches, shows match count |
-| **Navigate matches** | `Enter` / `Shift+Enter`, or the Prev / Next buttons |
-| **Jump to source** | Click any class name, attribute, or method — opens the file at the definition line |
+| Action               | How                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| **Pan**              | Click and drag                                                                       |
+| **Zoom**             | Scroll wheel (30 % – 300 %)                                                          |
+| **Find**             | `Ctrl+F` / `Cmd+F` — searches class names, highlights all matches, shows match count |
+| **Navigate matches** | `Enter` / `Shift+Enter`, or the Prev / Next buttons                                  |
+| **Jump to source**   | Click any class name, attribute, or method — opens the file at the definition line   |
 
 Pan position, zoom level, and the file-paths checkbox state are persisted per webview session.
 
@@ -80,24 +80,24 @@ Pan position, zoom level, and the file-paths checkbox state are persisted per we
 
 ## Color Key
 
-| Color | Meaning |
-|---|---|
-| Blue | Declared attribute (`name: Type`) |
+| Color  | Meaning                                                        |
+| ------ | -------------------------------------------------------------- |
+| Blue   | Declared attribute (`name: Type`)                              |
 | Purple | Overridden attribute or method (redefined from a parent class) |
-| Red | Dynamic / undeclared attribute (see Limitations) |
-| Yellow | Method name |
-| Teal | Type annotation |
+| Red    | Dynamic / undeclared attribute (see Limitations)               |
+| Yellow | Method name                                                    |
+| Teal   | Type annotation                                                |
 
 ---
 
 ## Commands & Shortcuts
 
-| Command | Title | Shortcut |
-|---|---|---|
-| `pytree.showClassTree` | PyTree: Class Tree | `Ctrl+Alt+Space` |
-| `pytree.showCompleteClassTree` | PyTree: Complete Class Tree | `Ctrl+Alt+T` |
-| `pytree.showProjectTree` | PyTree: Project Tree | `Ctrl+Alt+P` |
-| `pytree.pickClasses` | PyTree: Pick Classes... | — |
+| Command                        | Title                       | Shortcut         |
+| ------------------------------ | --------------------------- | ---------------- |
+| `pytree.showClassTree`         | PyTree: Class Tree          | `Ctrl+Alt+Space` |
+| `pytree.showCompleteClassTree` | PyTree: Complete Class Tree | `Ctrl+Alt+T`     |
+| `pytree.showProjectTree`       | PyTree: Project Tree        | `Ctrl+Alt+P`     |
+| `pytree.pickClasses`           | PyTree: Pick Classes...     | —                |
 
 ---
 

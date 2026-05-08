@@ -1,7 +1,14 @@
 import type { ClassNode, RenderedBox } from '../../types';
 import { Theme, UI } from '../../config';
-import { ClassBox, Line, Text, TSpan, NavGroup, ClipPath, Group } from '../components';
-
+import {
+    ClassBox,
+    Line,
+    Text,
+    TSpan,
+    NavGroup,
+    ClipPath,
+    Group,
+} from '../components';
 
 export function collectInheritedNames(
     node: ClassNode,
@@ -15,25 +22,36 @@ export function collectInheritedNames(
         .filter((id): id is string => id !== undefined);
     while (stack.length) {
         const id = stack.pop()!;
-        if (visited.has(id)) {continue;}
+        if (visited.has(id)) {
+            continue;
+        }
         visited.add(id);
         const base = allNodes.get(id);
-        if (!base) {continue;}
-        for (const attr of base.attributes) {attrs.add(attr.name);}
-        for (const method of base.methods) {methods.add(method.name);}
+        if (!base) {
+            continue;
+        }
+        for (const attr of base.attributes) {
+            attrs.add(attr.name);
+        }
+        for (const method of base.methods) {
+            methods.add(method.name);
+        }
         for (const b of base.bases) {
-            if (b.id) {stack.push(b.id);}
+            if (b.id) {
+                stack.push(b.id);
+            }
         }
     }
     return { attrs, methods };
 }
 
-
 function renderTypeSpans(typeStr: string): string {
     const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]])/);
     return tokens
         .map(token => {
-            if (!token) {return '';}
+            if (!token) {
+                return '';
+            }
             if (
                 (token.startsWith("'") && token.endsWith("'")) ||
                 (token.startsWith('"') && token.endsWith('"'))
@@ -49,13 +67,21 @@ function renderTypeSpans(typeStr: string): string {
 }
 
 const BOOL_KEYWORDS = new Set(['True', 'False', 'None']);
-const PY_KEYWORDS   = new Set(['and', 'or', 'not', 'in', 'is', 'lambda', 'if', 'else', 'for']);
-
+const PY_KEYWORDS = new Set([
+    'and',
+    'or',
+    'not',
+    'in',
+    'is',
+    'lambda',
+    'if',
+    'else',
+    'for',
+]);
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
 
 function renderPythonValue(expr: string): string {
     type Tok = { text: string; color: string };
@@ -67,43 +93,84 @@ function renderPythonValue(expr: string): string {
         const strPfx = expr.slice(i).match(/^[fFbBrRuU]{0,2}(?:'{3}|"{3}|'|")/);
         if (strPfx) {
             const raw = strPfx[0];
-            const q = raw.endsWith("'''") ? "'''" : raw.endsWith('"""') ? '"""' : raw.slice(-1);
+            const q = raw.endsWith("'''")
+                ? "'''"
+                : raw.endsWith('"""')
+                  ? '"""'
+                  : raw.slice(-1);
             let j = i + raw.length;
             while (j < expr.length) {
-                if (expr.startsWith(q, j)) { j += q.length; break; }
-                if (expr[j] === '\\') {j++;}
+                if (expr.startsWith(q, j)) {
+                    j += q.length;
+                    break;
+                }
+                if (expr[j] === '\\') {
+                    j++;
+                }
                 j++;
             }
-            toks.push({ text: escapeXml(expr.slice(i, j)), color: Theme.colors.string });
+            toks.push({
+                text: escapeXml(expr.slice(i, j)),
+                color: Theme.colors.string,
+            });
             i = j;
             continue;
         }
 
         // Number
-        if (/[0-9]/.test(expr[i]) || (expr[i] === '.' && /[0-9]/.test(expr[i + 1] ?? ''))) {
+        if (
+            /[0-9]/.test(expr[i]) ||
+            (expr[i] === '.' && /[0-9]/.test(expr[i + 1] ?? ''))
+        ) {
             if (expr[i] === '0' && /[xXbBoO]/.test(expr[i + 1] ?? '')) {
                 let j = i + 2;
-                while (j < expr.length && /[0-9a-fA-F_]/.test(expr[j])) {j++;}
-                toks.push({ text: expr.slice(i, j), color: Theme.colors.number });
+                while (j < expr.length && /[0-9a-fA-F_]/.test(expr[j])) {
+                    j++;
+                }
+                toks.push({
+                    text: expr.slice(i, j),
+                    color: Theme.colors.number,
+                });
                 i = j;
             } else {
                 let p = i;
-                while (p < expr.length && /[0-9_]/.test(expr[p])) {p++;}
-                if (p > i) {toks.push({ text: expr.slice(i, p), color: Theme.colors.number });}
+                while (p < expr.length && /[0-9_]/.test(expr[p])) {
+                    p++;
+                }
+                if (p > i) {
+                    toks.push({
+                        text: expr.slice(i, p),
+                        color: Theme.colors.number,
+                    });
+                }
                 i = p;
                 if (i < expr.length && expr[i] === '.') {
                     toks.push({ text: '.', color: Theme.colors.text });
                     i++;
                     p = i;
-                    while (p < expr.length && /[0-9_]/.test(expr[p])) {p++;}
-                    if (p > i) {toks.push({ text: expr.slice(i, p), color: Theme.colors.number });}
+                    while (p < expr.length && /[0-9_]/.test(expr[p])) {
+                        p++;
+                    }
+                    if (p > i) {
+                        toks.push({
+                            text: expr.slice(i, p),
+                            color: Theme.colors.number,
+                        });
+                    }
                     i = p;
                 }
                 if (i < expr.length && /[eE]/.test(expr[i])) {
                     p = i + 1;
-                    if (p < expr.length && /[+\-]/.test(expr[p])) {p++;}
-                    while (p < expr.length && /[0-9_]/.test(expr[p])) {p++;}
-                    toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
+                    if (p < expr.length && /[+\-]/.test(expr[p])) {
+                        p++;
+                    }
+                    while (p < expr.length && /[0-9_]/.test(expr[p])) {
+                        p++;
+                    }
+                    toks.push({
+                        text: expr.slice(i, p),
+                        color: Theme.colors.number,
+                    });
                     i = p;
                 }
                 if (i < expr.length && /[jJ]/.test(expr[i])) {
@@ -117,15 +184,17 @@ function renderPythonValue(expr: string): string {
         // Identifier / keyword
         if (/[a-zA-Z_]/.test(expr[i])) {
             let j = i;
-            while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) {j++;}
+            while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) {
+                j++;
+            }
             const word = expr.slice(i, j);
             const color = BOOL_KEYWORDS.has(word)
                 ? Theme.colors.bool
                 : PY_KEYWORDS.has(word)
-                    ? Theme.colors.attribute
-                    : /[(\[]/.test(expr[j] ?? '')
-                        ? Theme.colors.method
-                        : Theme.colors.text;
+                  ? Theme.colors.attribute
+                  : /[(\[]/.test(expr[j] ?? '')
+                    ? Theme.colors.method
+                    : Theme.colors.text;
             toks.push({ text: word, color });
             i = j;
             continue;
@@ -138,68 +207,89 @@ function renderPythonValue(expr: string): string {
     // Merge adjacent same-color tokens
     const merged: Tok[] = [];
     for (const tok of toks) {
-        if (merged.length && merged[merged.length - 1].color === tok.color)
-            {merged[merged.length - 1].text += tok.text;}
-        else {merged.push({ ...tok });}
+        if (merged.length && merged[merged.length - 1].color === tok.color) {
+            merged[merged.length - 1].text += tok.text;
+        } else {
+            merged.push({ ...tok });
+        }
     }
-    return merged.map(tok => TSpan({ fill: tok.color, children: tok.text })).join('');
+    return merged
+        .map(tok => TSpan({ fill: tok.color, children: tok.text }))
+        .join('');
 }
-
 
 export interface MethodLayout {
     wrapped: boolean;
     measureLines: string[];
 }
 
-
-export function computeMethodLayouts(node: ClassNode, wrapAt: number): MethodLayout[] {
+export function computeMethodLayouts(
+    node: ClassNode,
+    wrapAt: number
+): MethodLayout[] {
     const indentStr = '    ';
     return node.methods.map(method => {
         const singleLine =
             `${method.name}(${method.params.map(param => `${param.name}${param.type ? `: ${param.type}` : ''}`).join(', ')})` +
             `${method.returnType ? ` -> ${method.returnType}` : ''}`;
-        if (singleLine.length <= wrapAt) {return { wrapped: false, measureLines: [singleLine] };}
+        if (singleLine.length <= wrapAt) {
+            return { wrapped: false, measureLines: [singleLine] };
+        }
         return {
             wrapped: true,
             measureLines: [
                 `${method.name}(`,
-                ...method.params.map(param => `${indentStr}${param.name}${param.type ? `: ${param.type}` : ''},`),
+                ...method.params.map(
+                    param =>
+                        `${indentStr}${param.name}${param.type ? `: ${param.type}` : ''},`
+                ),
                 `) -> ${method.returnType ?? ''}`,
             ],
         };
     });
 }
 
-
 function computeFilePathLines(fileUri: string, boxWidth: number): string[] {
     const { sidePadding, filePathCharWidth } = UI.box;
     const maxChars = Math.floor((boxWidth - sidePadding) / filePathCharWidth);
     const path = decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
-    if (path.length <= maxChars) {return [path];}
+    if (path.length <= maxChars) {
+        return [path];
+    }
     const lines: string[] = [];
     let remaining = path;
     while (remaining.length > maxChars) {
         let breakAt = remaining.lastIndexOf('/', maxChars);
-        if (breakAt <= 0) {breakAt = maxChars;}
-        else {breakAt++;}
+        if (breakAt <= 0) {
+            breakAt = maxChars;
+        } else {
+            breakAt++;
+        }
         lines.push(remaining.slice(0, breakAt));
         remaining = remaining.slice(breakAt);
     }
-    if (remaining) {lines.push(remaining);}
+    if (remaining) {
+        lines.push(remaining);
+    }
     return lines.slice(0, 3);
 }
 
-
 function filePathSectionHeight(lines: string[]): number {
-    return UI.box.filePathPadding * 2 + lines.length * UI.box.filePathLineHeight;
+    return (
+        UI.box.filePathPadding * 2 + lines.length * UI.box.filePathLineHeight
+    );
 }
 
-
-export function computeBoxWidth(node: ClassNode, layouts: MethodLayout[]): number {
+export function computeBoxWidth(
+    node: ClassNode,
+    layouts: MethodLayout[]
+): number {
     const { minWidth, maxWidth, charWidth, sidePadding } = UI.box;
     const attrTexts = node.attributes.flatMap(attr => {
         const base = `${attr.name}: ${attr.type ?? '?'}`;
-        if (!attr.defaultValue) {return [base];}
+        if (!attr.defaultValue) {
+            return [base];
+        }
         const [first, ...rest] = attr.defaultValue.split('\n');
         return [`${base} = ${first}`, ...rest];
     });
@@ -210,26 +300,45 @@ export function computeBoxWidth(node: ClassNode, layouts: MethodLayout[]): numbe
         ...methodTexts.map(t => t.length),
         10
     );
-    return Math.min(maxWidth, Math.max(minWidth, longestLineLength * charWidth + sidePadding));
+    return Math.min(
+        maxWidth,
+        Math.max(minWidth, longestLineLength * charWidth + sidePadding)
+    );
 }
-
 
 export function measureClassBox(
     node: ClassNode,
     inherited: { attrs: Set<string>; methods: Set<string> }
 ): { width: number; height: number } {
-    const { headerHeight, padding, lineHeight, sectionGap, sectionTopPadding, maxWidth, sidePadding, charWidth } = UI.box;
+    const {
+        headerHeight,
+        padding,
+        lineHeight,
+        sectionGap,
+        sectionTopPadding,
+        maxWidth,
+        sidePadding,
+        charWidth,
+    } = UI.box;
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
     const layouts = computeMethodLayouts(node, wrapAt);
     const width = computeBoxWidth(node, layouts);
-    const attrLineCount = node.attributes.reduce((sum, attr) =>
-        sum + (attr.defaultValue ? attr.defaultValue.split('\n').length : 1), 0);
+    const attrLineCount = node.attributes.reduce(
+        (sum, attr) =>
+            sum +
+            (attr.defaultValue ? attr.defaultValue.split('\n').length : 1),
+        0
+    );
     let y = headerHeight + sectionTopPadding + attrLineCount * lineHeight;
-    if (node.attributes.length && node.methods.length) {y += sectionGap / 2 + sectionTopPadding;}
-    const methodLineCount = layouts.reduce((sum, layout) => sum + layout.measureLines.length, 0);
+    if (node.attributes.length && node.methods.length) {
+        y += sectionGap / 2 + sectionTopPadding;
+    }
+    const methodLineCount = layouts.reduce(
+        (sum, layout) => sum + layout.measureLines.length,
+        0
+    );
     return { width, height: y + methodLineCount * lineHeight + padding };
 }
-
 
 function renderAttributes(
     node: ClassNode,
@@ -240,7 +349,9 @@ function renderAttributes(
     let y = startY;
     const svg = node.attributes
         .map(attr => {
-            const [firstDefault, ...contLines] = attr.defaultValue ? attr.defaultValue.split('\n') : [];
+            const [firstDefault, ...contLines] = attr.defaultValue
+                ? attr.defaultValue.split('\n')
+                : [];
 
             const firstText = Text({
                 x: 16,
@@ -248,7 +359,9 @@ function renderAttributes(
                 fontSize: Theme.font.size.normal,
                 children:
                     TSpan({
-                        fill: inherited.attrs.has(attr.name) ? Theme.colors.override : Theme.colors.attribute,
+                        fill: inherited.attrs.has(attr.name)
+                            ? Theme.colors.override
+                            : Theme.colors.attribute,
                         children: attr.name,
                     }) +
                     TSpan({ fill: Theme.colors.text, children: ': ' }) +
@@ -260,33 +373,47 @@ function renderAttributes(
             });
             y += lineHeight;
 
-            const contSvg = contLines.map(line => {
-                const leadingSpaces = line.match(/^ */)?.[0].length ?? 0;
-                const text = Text({
-                    x: 16 + leadingSpaces * charWidth,
-                    y,
-                    fontSize: Theme.font.size.normal,
-                    children: renderPythonValue(line.trimStart()),
-                });
-                y += lineHeight;
-                return text;
-            }).join('');
+            const contSvg = contLines
+                .map(line => {
+                    const leadingSpaces = line.match(/^ */)?.[0].length ?? 0;
+                    const text = Text({
+                        x: 16 + leadingSpaces * charWidth,
+                        y,
+                        fontSize: Theme.font.size.normal,
+                        children: renderPythonValue(line.trimStart()),
+                    });
+                    y += lineHeight;
+                    return text;
+                })
+                .join('');
 
-            return NavGroup({ fileUri: node.fileUri, line: attr.definedAtLine, role: 'member', children: firstText + contSvg });
+            return NavGroup({
+                fileUri: node.fileUri,
+                line: attr.definedAtLine,
+                role: 'member',
+                children: firstText + contSvg,
+            });
         })
         .join('');
     return { svg, endY: y };
 }
 
-
-function renderDivider(y: number, boxWidth: number): { svg: string; endY: number } {
+function renderDivider(
+    y: number,
+    boxWidth: number
+): { svg: string; endY: number } {
     const dividerY = y + UI.box.sectionGap / 2;
     return {
-        svg: Line({ x1: 12, y1: dividerY, x2: boxWidth - 12, y2: dividerY, stroke: Theme.colors.border }),
+        svg: Line({
+            x1: 12,
+            y1: dividerY,
+            x2: boxWidth - 12,
+            y2: dividerY,
+            stroke: Theme.colors.border,
+        }),
         endY: dividerY + UI.box.sectionTopPadding,
     };
 }
-
 
 function renderMethodRows(
     node: ClassNode,
@@ -307,20 +434,30 @@ function renderMethodRows(
 
             if (!layout.wrapped) {
                 const paramsSvg = method.params
-                    .map(param =>
-                        TSpan({ fill: Theme.colors.attribute, children: param.name }) +
-                        (param.type
-                            ? TSpan({ fill: Theme.colors.text, children: ': ' }) + renderTypeSpans(param.type)
-                            : '')
+                    .map(
+                        param =>
+                            TSpan({
+                                fill: Theme.colors.attribute,
+                                children: param.name,
+                            }) +
+                            (param.type
+                                ? TSpan({
+                                      fill: Theme.colors.text,
+                                      children: ': ',
+                                  }) + renderTypeSpans(param.type)
+                                : '')
                     )
                     .join(TSpan({ fill: Theme.colors.text, children: ', ' }));
 
                 const returnSvg = method.returnType
-                    ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
+                    ? TSpan({ fill: Theme.colors.text, children: ' → ' }) +
+                      renderTypeSpans(method.returnType)
                     : '';
 
                 const text = Text({
-                    x: 16, y, fontSize: Theme.font.size.normal,
+                    x: 16,
+                    y,
+                    fontSize: Theme.font.size.normal,
                     children:
                         TSpan({ fill: methodColor, children: method.name }) +
                         TSpan({ fill: Theme.colors.text, children: '(' }) +
@@ -329,48 +466,78 @@ function renderMethodRows(
                         returnSvg,
                 });
                 y += lineHeight;
-                return NavGroup({ fileUri: node.fileUri, line: method.definedAtLine, role: 'member', children: text });
+                return NavGroup({
+                    fileUri: node.fileUri,
+                    line: method.definedAtLine,
+                    role: 'member',
+                    children: text,
+                });
             }
 
             const lines: string[] = [];
-            lines.push(Text({
-                x: 16, y, fontSize: Theme.font.size.normal,
-                children:
-                    TSpan({ fill: methodColor, children: method.name }) +
-                    TSpan({ fill: Theme.colors.text, children: '(' }),
-            }));
+            lines.push(
+                Text({
+                    x: 16,
+                    y,
+                    fontSize: Theme.font.size.normal,
+                    children:
+                        TSpan({ fill: methodColor, children: method.name }) +
+                        TSpan({ fill: Theme.colors.text, children: '(' }),
+                })
+            );
             y += lineHeight;
 
             for (const param of method.params) {
-                lines.push(Text({
-                    x: 16 + indentPx, y, fontSize: Theme.font.size.normal,
-                    children:
-                        TSpan({ fill: Theme.colors.attribute, children: param.name }) +
-                        (param.type
-                            ? TSpan({ fill: Theme.colors.text, children: ': ' }) + renderTypeSpans(param.type)
-                            : '') +
-                        TSpan({ fill: Theme.colors.text, children: ',' }),
-                }));
+                lines.push(
+                    Text({
+                        x: 16 + indentPx,
+                        y,
+                        fontSize: Theme.font.size.normal,
+                        children:
+                            TSpan({
+                                fill: Theme.colors.attribute,
+                                children: param.name,
+                            }) +
+                            (param.type
+                                ? TSpan({
+                                      fill: Theme.colors.text,
+                                      children: ': ',
+                                  }) + renderTypeSpans(param.type)
+                                : '') +
+                            TSpan({ fill: Theme.colors.text, children: ',' }),
+                    })
+                );
                 y += lineHeight;
             }
 
-            lines.push(Text({
-                x: 16, y, fontSize: Theme.font.size.normal,
-                children:
-                    TSpan({ fill: Theme.colors.text, children: ')' }) +
-                    (method.returnType
-                        ? TSpan({ fill: Theme.colors.text, children: ' → ' }) + renderTypeSpans(method.returnType)
-                        : ''),
-            }));
+            lines.push(
+                Text({
+                    x: 16,
+                    y,
+                    fontSize: Theme.font.size.normal,
+                    children:
+                        TSpan({ fill: Theme.colors.text, children: ')' }) +
+                        (method.returnType
+                            ? TSpan({
+                                  fill: Theme.colors.text,
+                                  children: ' → ',
+                              }) + renderTypeSpans(method.returnType)
+                            : ''),
+                })
+            );
             y += lineHeight;
 
-            return NavGroup({ fileUri: node.fileUri, line: method.definedAtLine, role: 'member', children: lines.join('') });
+            return NavGroup({
+                fileUri: node.fileUri,
+                line: method.definedAtLine,
+                role: 'member',
+                children: lines.join(''),
+            });
         })
         .join('');
 
     return { svg, endY: y };
 }
-
 
 export function renderClassBox(
     node: ClassNode,
@@ -378,7 +545,15 @@ export function renderClassBox(
     y: number,
     inherited: { attrs: Set<string>; methods: Set<string> }
 ): RenderedBox {
-    const { headerHeight, padding, sectionTopPadding, maxWidth, sidePadding, charWidth, borderRadius } = UI.box;
+    const {
+        headerHeight,
+        padding,
+        sectionTopPadding,
+        maxWidth,
+        sidePadding,
+        charWidth,
+        borderRadius,
+    } = UI.box;
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
 
     const layouts = computeMethodLayouts(node, wrapAt);
@@ -389,7 +564,11 @@ export function renderClassBox(
     const { filePathFontSize, filePathLineHeight, filePathPadding } = UI.box;
 
     const contentStartY = headerHeight + sectionTopPadding;
-    const { svg: attrSvg, endY: afterAttrs } = renderAttributes(node, contentStartY, inherited);
+    const { svg: attrSvg, endY: afterAttrs } = renderAttributes(
+        node,
+        contentStartY,
+        inherited
+    );
 
     let methodStartY = afterAttrs;
     let dividerSvg = '';
@@ -399,11 +578,20 @@ export function renderClassBox(
         methodStartY = divider.endY;
     }
 
-    const { svg: methodSvg, endY: afterMethods } = renderMethodRows(node, layouts, methodStartY, inherited);
+    const { svg: methodSvg, endY: afterMethods } = renderMethodRows(
+        node,
+        layouts,
+        methodStartY,
+        inherited
+    );
     const height = afterMethods + padding;
 
     const panel = ClassBox({
-        x: 0, y: 0, width, height, borderRadius,
+        x: 0,
+        y: 0,
+        width,
+        height,
+        borderRadius,
         fill: Theme.colors.panelBackground,
         stroke: Theme.colors.border,
     });
@@ -411,29 +599,47 @@ export function renderClassBox(
     // File path floats above the box (negative y) so it doesn't affect box layout.
     // It extends by borderRadius downward so the bottom rounded corners are hidden behind the panel.
     const filePathBg = ClassBox({
-        x: 0, y: -fpHeight, width, height: fpHeight + borderRadius, borderRadius,
+        x: 0,
+        y: -fpHeight,
+        width,
+        height: fpHeight + borderRadius,
+        borderRadius,
         fill: Theme.colors.filePathBackground,
         stroke: 'none',
     });
-    const filePathTextSvg = fpLines.map((line, i) =>
-        Text({
-            x: 16,
-            y: -fpHeight + filePathPadding + (i + 1) * filePathLineHeight - 2,
-            fontSize: filePathFontSize,
-            fill: Theme.colors.filePathText,
-            children: escapeXml(line),
-        })
-    ).join('');
-    const filePathSection = Group({ className: 'file-path-section', children: filePathBg + filePathTextSvg });
+    const filePathTextSvg = fpLines
+        .map((line, i) =>
+            Text({
+                x: 16,
+                y:
+                    -fpHeight +
+                    filePathPadding +
+                    (i + 1) * filePathLineHeight -
+                    2,
+                fontSize: filePathFontSize,
+                fill: Theme.colors.filePathText,
+                children: escapeXml(line),
+            })
+        )
+        .join('');
+    const filePathSection = Group({
+        className: 'file-path-section',
+        children: filePathBg + filePathTextSvg,
+    });
 
     const header = ClassBox({
-        x: 0, y: 0, width, height: headerHeight,
+        x: 0,
+        y: 0,
+        width,
+        height: headerHeight,
         fill: Theme.colors.headerBackground,
         stroke: 'none',
     });
 
     const title = NavGroup({
-        fileUri: node.fileUri, line: node.definedAtLine, role: 'class',
+        fileUri: node.fileUri,
+        line: node.definedAtLine,
+        role: 'class',
         children: Text({
             x: width / 2,
             y: 22,
@@ -446,11 +652,30 @@ export function renderClassBox(
     });
 
     const clipId = `clip-${node.id.replace(/\W/g, '_')}`;
-    const clipDef = ClipPath({ id: clipId, x: 0, y: headerHeight, width, height: height - headerHeight });
-    const clippedContent = Group({ clipPath: `url(#${clipId})`, children: attrSvg + dividerSvg + methodSvg });
+    const clipDef = ClipPath({
+        id: clipId,
+        x: 0,
+        y: headerHeight,
+        width,
+        height: height - headerHeight,
+    });
+    const clippedContent = Group({
+        clipPath: `url(#${clipId})`,
+        children: attrSvg + dividerSvg + methodSvg,
+    });
 
     return {
-        svg: Group({ dataPtBox: true, transform: `translate(${x - width / 2}, ${y})`, children: clipDef + panel + filePathSection + header + title + clippedContent }),
+        svg: Group({
+            dataPtBox: true,
+            transform: `translate(${x - width / 2}, ${y})`,
+            children:
+                clipDef +
+                panel +
+                filePathSection +
+                header +
+                title +
+                clippedContent,
+        }),
         width,
         height,
     };

@@ -7,16 +7,24 @@ import { openWebview } from '../utils/webview';
 import { Messages } from '../config';
 import { renderClassTree } from '../ui/render/trees/single';
 
-export async function showClassTree(context: vscode.ExtensionContext, ref?: ClassRef) {
+export async function showClassTree(
+    context: vscode.ExtensionContext,
+    ref?: ClassRef
+) {
     const focusNode = await resolveClassNode(ref);
     if (!focusNode) {
         vscode.window.showInformationMessage(Messages.noClassUnderCursor);
         return;
     }
 
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(focusNode.fileUri));
+    const document = await vscode.workspace.openTextDocument(
+        vscode.Uri.parse(focusNode.fileUri)
+    );
     const classes = await buildInheritanceMap(focusNode.id, document);
-    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.id, classes), classes);
+    const ancestors = resolveLayeredNodes(
+        collectAncestors(focusNode.id, classes),
+        classes
+    );
 
     openWebview(
         context,

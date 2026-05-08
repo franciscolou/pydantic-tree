@@ -6,14 +6,14 @@ export const HoverProvider: vscode.HoverProvider = {
     async provideHover(document, position) {
         const node = await getClassUnderCursor(document, position);
 
-        if (!node) {return;}
+        if (!node) {
+            return;
+        }
 
-        const md = new vscode.MarkdownString(
-            renderClassHover(node)
-        );
+        const md = new vscode.MarkdownString(renderClassHover(node));
 
         md.isTrusted = true;
 
         return new vscode.Hover(md);
-    }
+    },
 };

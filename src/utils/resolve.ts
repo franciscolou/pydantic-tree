@@ -1,18 +1,26 @@
 import * as vscode from 'vscode';
-import { ClassNode, ClassRef } from "../types";
-import { extractClasses } from "../utils/parser";
+import { ClassNode, ClassRef } from '../types';
+import { extractClasses } from '../utils/parser';
 
-export async function resolveClassNode(ref?: ClassRef): Promise<ClassNode | undefined> {
+export async function resolveClassNode(
+    ref?: ClassRef
+): Promise<ClassNode | undefined> {
     if (ref) {
-        const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(ref.fileUri));
+        const document = await vscode.workspace.openTextDocument(
+            vscode.Uri.parse(ref.fileUri)
+        );
         const classes = await extractClasses(document);
         for (const node of classes.values()) {
-            if (node.definedAtLine === ref.line) {return node;}
+            if (node.definedAtLine === ref.line) {
+                return node;
+            }
         }
         return undefined;
     }
     const editor = vscode.window.activeTextEditor;
-    if (!editor) {return undefined;}
+    if (!editor) {
+        return undefined;
+    }
     return getClassUnderCursor(editor.document, editor.selection.active);
 }
 
@@ -21,7 +29,9 @@ export async function getClassUnderCursor(
     position: vscode.Position
 ): Promise<ClassNode | undefined> {
     const range = document.getWordRangeAtPosition(position);
-    if (!range) {return;}
+    if (!range) {
+        return;
+    }
     const word = document.getText(range);
     const classes = await extractClasses(document);
     // The map is identified by class ID; resolve by name within this document.
@@ -29,10 +39,14 @@ export async function getClassUnderCursor(
     // the right node is picked when this file declares multiple classes that
     // happen to share a leading word.
     for (const node of classes.values()) {
-        if (node.name === word && node.definedAtLine === position.line) {return node;}
+        if (node.name === word && node.definedAtLine === position.line) {
+            return node;
+        }
     }
     for (const node of classes.values()) {
-        if (node.name === word) {return node;}
+        if (node.name === word) {
+            return node;
+        }
     }
     return undefined;
 }
@@ -42,6 +56,8 @@ export function resolveLayeredNodes(
     classes: Map<string, ClassNode>
 ): ClassNode[][] {
     return nameLayers.map(layer =>
-        layer.map(name => classes.get(name)).filter((node): node is ClassNode => Boolean(node))
+        layer
+            .map(name => classes.get(name))
+            .filter((node): node is ClassNode => Boolean(node))
     );
 }

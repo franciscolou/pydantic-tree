@@ -4,9 +4,9 @@ export const Messages = {
 
     hover: {
         labels: {
-            showClassTree: "Show Class Tree",
-            showCompleteTree: "Show Complete Tree"
-        }
+            showClassTree: 'Show Class Tree',
+            showCompleteTree: 'Show Complete Tree',
+        },
     },
 
     status: {
@@ -16,29 +16,30 @@ export const Messages = {
     webView: {
         titles: {
             classTree: (name: string) => `PyTree: ${name} Inheritance`,
-            completeClassTree: (name: string) => `PyTree: ${name} Complete Inheritance`,
+            completeClassTree: (name: string) =>
+                `PyTree: ${name} Complete Inheritance`,
             projectTree: 'PyTree: Project Tree',
-            pickedClassesTree: 'PyTree: Picked Classes'
+            pickedClassesTree: 'PyTree: Picked Classes',
         },
         options: {
-            showAllFilePaths: "Show all file paths"
+            showAllFilePaths: 'Show all file paths',
         },
     },
 
     commands: {
         pickClasses: {
             labels: {
-                placeholder: "Select tree type",
+                placeholder: 'Select tree type',
 
                 simpleTree: {
-                    title: "Simple Tree",
-                    description: "Ancestors only"
+                    title: 'Simple Tree',
+                    description: 'Ancestors only',
                 },
                 completeTree: {
-                    title: "Complete Tree",
-                    description: "Ancestors and descendants"
-                }
-        }
-        }
-    }
+                    title: 'Complete Tree',
+                    description: 'Ancestors and descendants',
+                },
+            },
+        },
+    },
 } as const;

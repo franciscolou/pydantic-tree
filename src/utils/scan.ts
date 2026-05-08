@@ -14,7 +14,10 @@ export async function scanWorkspaceClasses(
     const step = files.length > 0 ? 100 / files.length : 100;
 
     for (const uri of files) {
-        progress?.report({ message: uri.fsPath.split('/').pop(), increment: step });
+        progress?.report({
+            message: uri.fsPath.split('/').pop(),
+            increment: step,
+        });
         try {
             const doc = await vscode.workspace.openTextDocument(uri);
             const classes = await extractClasses(doc);

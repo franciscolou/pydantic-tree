@@ -6,13 +6,7 @@ export interface ClipPathProps {
     height: number;
 }
 
-export function ClipPath({
-    id,
-    x,
-    y,
-    width,
-    height,
-}: ClipPathProps): string {
+export function ClipPath({ id, x, y, width, height }: ClipPathProps): string {
     return `
 <defs>
     <clipPath id="${id}">

@@ -27,9 +27,13 @@ export interface EdgeConnection {
 // Lanes are ordered center-outward: 0, +STEP, -STEP, +2*STEP, -2*STEP, ...
 function assignEdgeLanes(segments: [number, number][], step: number): number[] {
     const n = segments.length;
-    if (n <= 1) {return new Array(n).fill(0);}
+    if (n <= 1) {
+        return new Array(n).fill(0);
+    }
 
-    const normalized = segments.map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number]);
+    const normalized = segments.map(
+        ([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number]
+    );
 
     const laneOrder: number[] = [0];
     for (let i = 1; i <= n; i++) {
@@ -43,10 +47,14 @@ function assignEdgeLanes(segments: [number, number][], step: number): number[] {
         const [left, right] = normalized[i];
         for (const offset of laneOrder) {
             const occupied = laneRanges.get(offset) ?? [];
-            const conflicts = occupied.some(([ol, or_]) => left < or_ && right > ol);
+            const conflicts = occupied.some(
+                ([ol, or_]) => left < or_ && right > ol
+            );
             if (!conflicts) {
                 result[i] = offset;
-                if (!laneRanges.has(offset)) {laneRanges.set(offset, []);}
+                if (!laneRanges.has(offset)) {
+                    laneRanges.set(offset, []);
+                }
                 laneRanges.get(offset)!.push([left, right]);
                 break;
             }
@@ -63,37 +71,88 @@ function assignEdgeLanes(segments: [number, number][], step: number): number[] {
 // Returns true if a horizontal segment (at y=hy, from hx1 to hx2) strictly
 // crosses a vertical segment (at x=vx, from vy1 to vy2) in the interior.
 function hVIntersect(
-    hy: number, hx1: number, hx2: number,
-    vx: number, vy1: number, vy2: number
+    hy: number,
+    hx1: number,
+    hx2: number,
+    vx: number,
+    vy1: number,
+    vy2: number
 ): boolean {
-    const minHX = Math.min(hx1, hx2), maxHX = Math.max(hx1, hx2);
-    const minVY = Math.min(vy1, vy2), maxVY = Math.max(vy1, vy2);
+    const minHX = Math.min(hx1, hx2),
+        maxHX = Math.max(hx1, hx2);
+    const minVY = Math.min(vy1, vy2),
+        maxVY = Math.max(vy1, vy2);
     return minHX < vx && vx < maxHX && minVY < hy && hy < maxVY;
 }
 
 // Returns true if two Y-ranges strictly overlap (share more than an endpoint).
-function rangesOverlap(a1: number, a2: number, b1: number, b2: number): boolean {
-    const minA = Math.min(a1, a2), maxA = Math.max(a1, a2);
-    const minB = Math.min(b1, b2), maxB = Math.max(b1, b2);
+function rangesOverlap(
+    a1: number,
+    a2: number,
+    b1: number,
+    b2: number
+): boolean {
+    const minA = Math.min(a1, a2),
+        maxA = Math.max(a1, a2);
+    const minB = Math.min(b1, b2),
+        maxB = Math.max(b1, b2);
     return minA < maxB && minB < maxA;
 }
 
 // Two connections collide if any of their 3-segment paths cross geometrically.
 // Checks H vs V crossings and V vs V overlaps (same-parent or same-child).
 function connectionsIntersect(
-    ci: EdgeConnection, eyi: number,
-    cj: EdgeConnection, eyj: number
+    ci: EdgeConnection,
+    eyi: number,
+    cj: EdgeConnection,
+    eyj: number
 ): boolean {
     // H_i vs parent-vertical_j and child-vertical_j
-    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.parentX, cj.parentBottom, eyj)) {return true;}
-    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.childX, eyj, cj.childTop)) {return true;}
+    if (
+        hVIntersect(
+            eyi,
+            ci.parentX,
+            ci.childX,
+            cj.parentX,
+            cj.parentBottom,
+            eyj
+        )
+    ) {
+        return true;
+    }
+    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.childX, eyj, cj.childTop)) {
+        return true;
+    }
     // H_j vs parent-vertical_i and child-vertical_i
-    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.parentX, ci.parentBottom, eyi)) {return true;}
-    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.childX, eyi, ci.childTop)) {return true;}
+    if (
+        hVIntersect(
+            eyj,
+            cj.parentX,
+            cj.childX,
+            ci.parentX,
+            ci.parentBottom,
+            eyi
+        )
+    ) {
+        return true;
+    }
+    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.childX, eyi, ci.childTop)) {
+        return true;
+    }
     // Same parent → parent verticals overlap on the same X
-    if (ci.parentX === cj.parentX && rangesOverlap(ci.parentBottom, eyi, cj.parentBottom, eyj)) {return true;}
+    if (
+        ci.parentX === cj.parentX &&
+        rangesOverlap(ci.parentBottom, eyi, cj.parentBottom, eyj)
+    ) {
+        return true;
+    }
     // Same child → child verticals overlap on the same X
-    if (ci.childX === cj.childX && rangesOverlap(eyi, ci.childTop, eyj, cj.childTop)) {return true;}
+    if (
+        ci.childX === cj.childX &&
+        rangesOverlap(eyi, ci.childTop, eyj, cj.childTop)
+    ) {
+        return true;
+    }
     return false;
 }
 
@@ -110,7 +169,9 @@ function computeAttachXs(ownXs: number[], otherXs: number[]): number[] {
 
     const groups = new Map<number, number[]>();
     for (let i = 0; i < n; i++) {
-        if (!groups.has(ownXs[i])) {groups.set(ownXs[i], []);}
+        if (!groups.has(ownXs[i])) {
+            groups.set(ownXs[i], []);
+        }
         groups.get(ownXs[i])!.push(i);
     }
 
@@ -139,10 +200,15 @@ export function drawConnections(
     busY: number,
     palette: readonly string[]
 ): string {
-    if (connections.length === 0) {return '';}
+    if (connections.length === 0) {
+        return '';
+    }
 
     const n = connections.length;
-    const laneOffsets = assignEdgeLanes(connections.map(c => [c.parentX, c.childX]), LANE_STEP);
+    const laneOffsets = assignEdgeLanes(
+        connections.map(c => [c.parentX, c.childX]),
+        LANE_STEP
+    );
     const edgeYs = laneOffsets.map(lo => busY + lo);
 
     const parentAttachXs = computeAttachXs(
@@ -158,12 +224,21 @@ export function drawConnections(
     for (let i = 0; i < n; i++) {
         const used = new Set<number>();
         for (let j = 0; j < i; j++) {
-            if (connectionsIntersect(connections[i], edgeYs[i], connections[j], edgeYs[j])) {
+            if (
+                connectionsIntersect(
+                    connections[i],
+                    edgeYs[i],
+                    connections[j],
+                    edgeYs[j]
+                )
+            ) {
                 used.add(colorIndices[j]);
             }
         }
         let c = 0;
-        while (used.has(c)) {c++;}
+        while (used.has(c)) {
+            c++;
+        }
         colorIndices[i] = c;
     }
 
@@ -174,7 +249,13 @@ export function drawConnections(
         const pX = parentAttachXs[i];
         const cX = childAttachXs[i];
         svg += hollowArrow(pX, parentBottom, color);
-        svg += Line({ x1: pX, y1: parentBottom + ARROW_H, x2: pX, y2: edgeY, stroke: color });
+        svg += Line({
+            x1: pX,
+            y1: parentBottom + ARROW_H,
+            x2: pX,
+            y2: edgeY,
+            stroke: color,
+        });
         svg += Line({ x1: pX, y1: edgeY, x2: cX, y2: edgeY, stroke: color });
         svg += Line({ x1: cX, y1: edgeY, x2: cX, y2: childTop, stroke: color });
     });
@@ -192,27 +273,37 @@ export function renderAncestorEdges(
 ): string {
     let edges = '';
 
-    if (layerBoxes.length === 0) {return edges;}
+    if (layerBoxes.length === 0) {
+        return edges;
+    }
 
     // Layer 0: direct parents → focus, drawn with palette colors for visibility
-    const layer0Bottom = Math.max(...layerBoxes[0].map(box => box.y + box.height));
+    const layer0Bottom = Math.max(
+        ...layerBoxes[0].map(box => box.y + box.height)
+    );
     const busY0 = (layer0Bottom + focusTopY) / 2;
-    const layer0Connections: EdgeConnection[] = orderedLayers[0].map((_, i) => ({
-        parentX:      layerBoxes[0][i].x,
-        parentBottom: layerBoxes[0][i].y + layerBoxes[0][i].height,
-        childX:       0,
-        childTop:     focusTopY,
-    }));
-    edges += drawConnections(layer0Connections, busY0, Theme.colors.edgePalette);
+    const layer0Connections: EdgeConnection[] = orderedLayers[0].map(
+        (_, i) => ({
+            parentX: layerBoxes[0][i].x,
+            parentBottom: layerBoxes[0][i].y + layerBoxes[0][i].height,
+            childX: 0,
+            childTop: focusTopY,
+        })
+    );
+    edges += drawConnections(
+        layer0Connections,
+        busY0,
+        Theme.colors.edgePalette
+    );
 
     for (let i = 1; i < layerBoxes.length; i++) {
         const parentNodes = orderedLayers[i];
         const parentBoxes = layerBoxes[i];
 
-        const busY = (
-            Math.max(...layerBoxes[i].map(box => box.y + box.height)) +
-            Math.min(...layerBoxes[i - 1].map(box => box.y))
-        ) / 2;
+        const busY =
+            (Math.max(...layerBoxes[i].map(box => box.y + box.height)) +
+                Math.min(...layerBoxes[i - 1].map(box => box.y))) /
+            2;
 
         // Adjacent connections (j === i-1): collect all across every parent, assign lanes, draw.
         const adjacentConnections: EdgeConnection[] = [];
@@ -231,7 +322,11 @@ export function renderAncestorEdges(
                 }
             });
         });
-        edges += drawConnections(adjacentConnections, busY, Theme.colors.edgePalette);
+        edges += drawConnections(
+            adjacentConnections,
+            busY,
+            Theme.colors.edgePalette
+        );
 
         // Non-adjacent connections (j < i-1): route outside intermediate boxes.
         parentNodes.forEach((parentNode, parentIdx) => {
@@ -243,7 +338,13 @@ export function renderAncestorEdges(
                     drewVertical = true;
                     const py = parentBox.y + parentBox.height;
                     edges += hollowArrow(parentBox.x, py, Theme.colors.edge);
-                    edges += Line({ x1: parentBox.x, y1: py + ARROW_H, x2: parentBox.x, y2: busY, stroke: Theme.colors.edge });
+                    edges += Line({
+                        x1: parentBox.x,
+                        y1: py + ARROW_H,
+                        x2: parentBox.x,
+                        y2: busY,
+                        stroke: Theme.colors.edge,
+                    });
                 }
             };
 
@@ -252,30 +353,76 @@ export function renderAncestorEdges(
                 const childBoxes = layerBoxes[j];
 
                 const children = childNodes
-                    .map((childNode, ci) => ({ childNode, childBox: childBoxes[ci] }))
-                    .filter(({ childNode }) => (childNode.bases ?? []).some(b => b.id === parentNode.id));
+                    .map((childNode, ci) => ({
+                        childNode,
+                        childBox: childBoxes[ci],
+                    }))
+                    .filter(({ childNode }) =>
+                        (childNode.bases ?? []).some(
+                            b => b.id === parentNode.id
+                        )
+                    );
 
-                if (children.length === 0) {continue;}
+                if (children.length === 0) {
+                    continue;
+                }
 
-                const childBusY = (
-                    Math.max(...layerBoxes[j + 1].map(box => box.y + box.height)) +
-                    Math.min(...layerBoxes[j].map(box => box.y))
-                ) / 2;
+                const childBusY =
+                    (Math.max(
+                        ...layerBoxes[j + 1].map(box => box.y + box.height)
+                    ) +
+                        Math.min(...layerBoxes[j].map(box => box.y))) /
+                    2;
 
                 const nearbyBoxes: BoxMeasures[] = [];
-                for (let k = j; k <= i; k++) {nearbyBoxes.push(...layerBoxes[k]);}
+                for (let k = j; k <= i; k++) {
+                    nearbyBoxes.push(...layerBoxes[k]);
+                }
                 const margin = 40;
 
                 for (const { childBox } of children) {
-                    const rightEdge = Math.max(...nearbyBoxes.map(box => box.x + box.width / 2)) + margin;
-                    const leftEdge  = Math.min(...nearbyBoxes.map(box => box.x - box.width / 2)) - margin;
-                    const sideX = parentBox.x + childBox.x > rightEdge + leftEdge ? rightEdge : leftEdge;
+                    const rightEdge =
+                        Math.max(
+                            ...nearbyBoxes.map(box => box.x + box.width / 2)
+                        ) + margin;
+                    const leftEdge =
+                        Math.min(
+                            ...nearbyBoxes.map(box => box.x - box.width / 2)
+                        ) - margin;
+                    const sideX =
+                        parentBox.x + childBox.x > rightEdge + leftEdge
+                            ? rightEdge
+                            : leftEdge;
 
                     drawVerticalIfNeeded();
-                    edges += Line({ x1: parentBox.x, y1: busY, x2: sideX, y2: busY, stroke: Theme.colors.edge });
-                    edges += Line({ x1: sideX, y1: busY, x2: sideX, y2: childBusY, stroke: Theme.colors.edge });
-                    edges += Line({ x1: sideX, y1: childBusY, x2: childBox.x, y2: childBusY, stroke: Theme.colors.edge });
-                    edges += Line({ x1: childBox.x, y1: childBusY, x2: childBox.x, y2: childBox.y, stroke: Theme.colors.edge });
+                    edges += Line({
+                        x1: parentBox.x,
+                        y1: busY,
+                        x2: sideX,
+                        y2: busY,
+                        stroke: Theme.colors.edge,
+                    });
+                    edges += Line({
+                        x1: sideX,
+                        y1: busY,
+                        x2: sideX,
+                        y2: childBusY,
+                        stroke: Theme.colors.edge,
+                    });
+                    edges += Line({
+                        x1: sideX,
+                        y1: childBusY,
+                        x2: childBox.x,
+                        y2: childBusY,
+                        stroke: Theme.colors.edge,
+                    });
+                    edges += Line({
+                        x1: childBox.x,
+                        y1: childBusY,
+                        x2: childBox.x,
+                        y2: childBox.y,
+                        stroke: Theme.colors.edge,
+                    });
                 }
             }
         });
@@ -295,18 +442,26 @@ export function renderDescendantEdges(
 ): string {
     let edges = '';
 
-    if (layerBoxes.length === 0) {return edges;}
+    if (layerBoxes.length === 0) {
+        return edges;
+    }
 
     // Layer 0: focus → direct children, drawn with palette colors for visibility
     const layer0Top = Math.min(...layerBoxes[0].map(box => box.y));
     const busY0 = (focusBottomY + layer0Top) / 2;
-    const layer0Connections: EdgeConnection[] = orderedLayers[0].map((_, i) => ({
-        parentX:      0,
-        parentBottom: focusBottomY,
-        childX:       layerBoxes[0][i].x,
-        childTop:     layerBoxes[0][i].y,
-    }));
-    edges += drawConnections(layer0Connections, busY0, Theme.colors.edgePalette);
+    const layer0Connections: EdgeConnection[] = orderedLayers[0].map(
+        (_, i) => ({
+            parentX: 0,
+            parentBottom: focusBottomY,
+            childX: layerBoxes[0][i].x,
+            childTop: layerBoxes[0][i].y,
+        })
+    );
+    edges += drawConnections(
+        layer0Connections,
+        busY0,
+        Theme.colors.edgePalette
+    );
 
     // Layers i > 0: collect all connections for this gap, assign lanes, draw.
     for (let i = 1; i < layerBoxes.length; i++) {
@@ -315,10 +470,10 @@ export function renderDescendantEdges(
         const parentNodes = orderedLayers[i - 1];
         const childNodes = orderedLayers[i];
 
-        const busY = (
-            Math.max(...parentLayer.map(box => box.y + box.height)) +
-            Math.min(...childLayer.map(box => box.y))
-        ) / 2;
+        const busY =
+            (Math.max(...parentLayer.map(box => box.y + box.height)) +
+                Math.min(...childLayer.map(box => box.y))) /
+            2;
 
         const connections: EdgeConnection[] = [];
         parentNodes.forEach((parentNode, j) => {

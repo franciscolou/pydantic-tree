@@ -8,28 +8,45 @@ import { scanWorkspaceClasses } from '../utils/scan';
 import { renderClassTree } from '../ui/render/trees/single';
 import { ClassRef } from '../types';
 
-export async function showCompleteClassTree(context: vscode.ExtensionContext, ref?: ClassRef) {
+export async function showCompleteClassTree(
+    context: vscode.ExtensionContext,
+    ref?: ClassRef
+) {
     const focusNode = await resolveClassNode(ref);
     if (!focusNode) {
         vscode.window.showInformationMessage(Messages.noClassUnderCursor);
         return;
     }
 
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(focusNode.fileUri));
+    const document = await vscode.workspace.openTextDocument(
+        vscode.Uri.parse(focusNode.fileUri)
+    );
     let classes = await buildInheritanceMap(focusNode.id, document);
 
     await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: Messages.status.scanningFiles, cancellable: false },
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: Messages.status.scanningFiles,
+            cancellable: false,
+        },
         async progress => {
             const allClasses = await scanWorkspaceClasses(progress);
             for (const [id, node] of allClasses) {
-                if (!classes.has(id)) {classes.set(id, node);}
+                if (!classes.has(id)) {
+                    classes.set(id, node);
+                }
             }
         }
     );
 
-    const ancestors = resolveLayeredNodes(collectAncestors(focusNode.id, classes), classes);
-    const descendants = resolveLayeredNodes(collectDescendants(focusNode.id, classes), classes);
+    const ancestors = resolveLayeredNodes(
+        collectAncestors(focusNode.id, classes),
+        classes
+    );
+    const descendants = resolveLayeredNodes(
+        collectDescendants(focusNode.id, classes),
+        classes
+    );
 
     openWebview(
         context,

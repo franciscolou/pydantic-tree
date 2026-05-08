@@ -27,7 +27,9 @@ export function renderBaseStyles(): string {
 </style>`;
 }
 
-export function renderViewportScript(opts: { initialScale?: number } = {}): string {
+export function renderViewportScript(
+    opts: { initialScale?: number } = {}
+): string {
     const initialScale = opts.initialScale ?? 1;
     return `
 <style>

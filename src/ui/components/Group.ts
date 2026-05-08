@@ -7,13 +7,22 @@ export interface GroupProps {
     children: string;
 }
 
-export function Group({ id, transform, className, clipPath, dataPtBox, children }: GroupProps): string {
+export function Group({
+    id,
+    transform,
+    className,
+    clipPath,
+    dataPtBox,
+    children,
+}: GroupProps): string {
     const attrs = [
-        id        ? `id="${id}"` : '',
+        id ? `id="${id}"` : '',
         transform ? `transform="${transform}"` : '',
         className ? `class="${className}"` : '',
-        clipPath  ? `clip-path="${clipPath}"` : '',
+        clipPath ? `clip-path="${clipPath}"` : '',
         dataPtBox ? 'data-pt-box' : '',
-    ].filter(Boolean).join(' ');
+    ]
+        .filter(Boolean)
+        .join(' ');
     return `<g${attrs ? ' ' + attrs : ''}>${children}</g>`;
 }

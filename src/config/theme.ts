@@ -1,26 +1,25 @@
 export const Theme = {
     colors: {
-        background:   'var(--pt-bg)',
+        background: 'var(--pt-bg)',
         panelBackground: 'var(--pt-panel-bg)',
-        border:       'var(--pt-border)',
+        border: 'var(--pt-border)',
 
         headerBackground: 'var(--pt-header-bg)',
-        headerText:   'var(--pt-header-text)',
+        headerText: 'var(--pt-header-text)',
 
         filePathBackground: 'var(--pt-filepath-bg)',
-        filePathText:       'var(--pt-filepath-text)',
+        filePathText: 'var(--pt-filepath-text)',
 
-        text:         'var(--pt-text)',
-        type:         'var(--pt-type)',
-        string:       'var(--pt-string)',
-        number:       'var(--pt-number)',
-        bool:         'var(--pt-bool)',
-        attribute:    'var(--pt-attribute)',
-        method:       'var(--pt-method)',
-        override:     'var(--pt-override)',
+        text: 'var(--pt-text)',
+        type: 'var(--pt-type)',
+        string: 'var(--pt-string)',
+        number: 'var(--pt-number)',
+        bool: 'var(--pt-bool)',
+        attribute: 'var(--pt-attribute)',
+        method: 'var(--pt-method)',
+        override: 'var(--pt-override)',
 
-
-        edge:         'var(--pt-edge)',
+        edge: 'var(--pt-edge)',
         edgePalette: [
             'var(--pt-edge-0)',
             'var(--pt-edge-1)',
