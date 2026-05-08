@@ -4,6 +4,7 @@ import { ClassNode } from './types';
 import { renderClassTreeSVG } from './ui/render';
 import { collectAncestors, collectDescendants, buildConnectedComponents, buildComponentLayers } from './ui/resolve';
 import { renderForestSVG } from './ui/renderForest';
+import { renderMultiTreeSVG } from './ui/renderMultiTree';
 import { scanWorkspaceClasses } from './projectScanner';
 import { renderClassMarkdown } from './ui/hover';
 import { Messages } from './config';
@@ -17,7 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
         registerHoverProvider(),
         registerShowClassCommand(context),
         registerShowCompleteClassCommand(context),
-        registerShowProjectTreeCommand(context)
+        registerShowProjectTreeCommand(context),
+        registerPickClassesCommand(context)
     );
 }
 
@@ -47,6 +49,10 @@ function registerShowCompleteClassCommand(context: vscode.ExtensionContext): vsc
 
 function registerShowProjectTreeCommand(context: vscode.ExtensionContext): vscode.Disposable {
     return vscode.commands.registerCommand('pytree.showProjectTree', () => showProjectTree(context));
+}
+
+function registerPickClassesCommand(context: vscode.ExtensionContext): vscode.Disposable {
+    return vscode.commands.registerCommand('pytree.pickClasses', () => showPickClassesTree(context));
 }
 
 /* =========================================================
@@ -138,6 +144,60 @@ async function showProjectTree(context: vscode.ExtensionContext) {
         'pytreeProjectTree',
         Messages.titles.projectTree,
         renderForestSVG(componentLayers, allClasses)
+    );
+}
+
+async function showPickClassesTree(context: vscode.ExtensionContext) {
+    const treeTypeItem = await vscode.window.showQuickPick(
+        [
+            { label: 'Simple Tree', description: 'Ancestors only' },
+            { label: 'Complete Tree', description: 'Ancestors and descendants' },
+        ],
+        { placeHolder: 'Select tree type' }
+    );
+    if (!treeTypeItem) return;
+    const isComplete = treeTypeItem.label === 'Complete Tree';
+
+    let allClasses = new Map<string, ClassNode>();
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: Messages.titles.scanningFiles, cancellable: false },
+        async progress => {
+            allClasses = await scanWorkspaceClasses(progress);
+        }
+    );
+
+    if (!allClasses.size) {
+        vscode.window.showInformationMessage(Messages.noClassesFound);
+        return;
+    }
+
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+    const items = [...allClasses.values()].map(node => {
+        const filePath = vscode.Uri.parse(node.fileUri).fsPath;
+        const relPath = workspaceRoot ? filePath.replace(workspaceRoot + '/', '') : filePath;
+        return { label: node.name, description: relPath, nodeId: node.id };
+    });
+
+    const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select classes to display',
+        canPickMany: true,
+    });
+    if (!selected || selected.length === 0) return;
+
+    const trees = selected.map(item => {
+        const focus = allClasses.get(item.nodeId)!;
+        const ancestorLayers = resolveLayeredNodes(collectAncestors(focus.id, allClasses), allClasses);
+        const descendantLayers = isComplete
+            ? resolveLayeredNodes(collectDescendants(focus.id, allClasses), allClasses)
+            : [];
+        return { focus, ancestorLayers, descendantLayers };
+    });
+
+    openWebview(
+        context,
+        'pytreePickedClasses',
+        'PyTree: Picked Classes',
+        renderMultiTreeSVG(trees)
     );
 }
 

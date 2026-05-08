@@ -26,6 +26,10 @@
             {
                 "command": "pytree.showProjectTree",
                 "title": "PyTree: Project Tree"
+            },
+            {
+                "command": "pytree.pickClasses",
+                "title": "PyTree: Pick Classes..."
             }
         ],
         "keybindings": [

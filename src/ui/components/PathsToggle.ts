@@ -1,3 +1,5 @@
+import { Messages } from '../../config';
+
 export function PathsToggle(): string {
     return `
 <div
@@ -20,6 +22,7 @@ export function PathsToggle(): string {
     <input
         type="checkbox"
         id="show-paths-cb"
+        style="outline: none;"
     />
 
     <label
@@ -29,7 +32,7 @@ export function PathsToggle(): string {
             font-size: 12px;
         "
     >
-        File paths
+        ${Messages.options.showAllFilePaths}
     </label>
 </div>`;
 }

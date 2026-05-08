@@ -40,11 +40,18 @@ function positionLayer(
    TREE RENDERING
 ========================================================= */
 
-export function renderClassTreeSVG(
+export interface TreeLayout {
+    svg: string;
+    halfWidth: number;
+    topY: number;
+    bottomY: number;
+}
+
+export function buildTreeLayout(
     focus: ClassNode,
     ancestorLayers: ClassNode[][],
     descendantLayers: ClassNode[][]
-): string {
+): TreeLayout {
     const { verticalGap, horizontalGap } = UI.tree;
 
     const allNodes = new Map<string, ClassNode>();
@@ -52,22 +59,26 @@ export function renderClassTreeSVG(
     for (const layer of ancestorLayers) for (const node of layer) allNodes.set(node.id, node);
     for (const layer of descendantLayers) for (const node of layer) allNodes.set(node.id, node);
 
-    // Focus box at origin
-    const focusRendered = renderClassBox(focus, 0, 0, collectInheritedNames(focus, allNodes));
+    const layerHalfWidth = (layer: ClassNode[]): number => {
+        const sizes = layer.map(node => measureClassBox(node, collectInheritedNames(node, allNodes)));
+        const total = sizes.reduce((sum, s) => sum + s.width, 0) + (layer.length - 1) * horizontalGap;
+        return total / 2;
+    };
 
-    // Position ancestor layers — order each layer by the average x of its children in the layer below,
-    // so ancestors land horizontally close to the descendants they connect to.
+    const focusRendered = renderClassBox(focus, 0, 0, collectInheritedNames(focus, allNodes));
+    let halfWidth = layerHalfWidth([focus]);
+    let boxesSvg = focusRendered.svg;
+
     let currentY = 0;
     const ancestorLayerBoxes: BoxMeasures[][] = [];
     const orderedAncestorLayers: ClassNode[][] = [];
-    let boxesSvg = focusRendered.svg;
-
     let prevAncestorLayer: ClassNode[] = [focus];
     let prevAncestorPositions = new Map<string, number>([[focus.id, 0]]);
 
     for (const layer of ancestorLayers) {
         const ordered = orderByChildBarycenter(layer, prevAncestorLayer, prevAncestorPositions);
         orderedAncestorLayers.push(ordered);
+        halfWidth = Math.max(halfWidth, layerHalfWidth(ordered));
         currentY -= verticalGap + measureLayerMaxHeight(ordered, allNodes);
         const { svgs, positions } = positionLayer(ordered, currentY, allNodes, horizontalGap);
         boxesSvg += svgs.join('');
@@ -75,29 +86,38 @@ export function renderClassTreeSVG(
         prevAncestorPositions = new Map(ordered.map((node, i) => [node.id, positions[i].x]));
         prevAncestorLayer = ordered;
     }
+    const topY = currentY;
 
-    // Position descendant layers — order each layer by the average x of its parents in the layer above,
-    // so children land horizontally close to their parents.
     currentY = focusRendered.height + verticalGap;
     const descendantLayerBoxes: BoxMeasures[][] = [];
     const orderedDescendantLayers: ClassNode[][] = [];
-
     let parentPositions = new Map<string, number>([[focus.id, 0]]);
 
     for (const layer of descendantLayers) {
         const ordered = orderByParentBarycenter(layer, parentPositions);
         orderedDescendantLayers.push(ordered);
+        halfWidth = Math.max(halfWidth, layerHalfWidth(ordered));
         const { svgs, positions } = positionLayer(ordered, currentY, allNodes, horizontalGap);
         boxesSvg += svgs.join('');
         currentY += Math.max(...positions.map(box => box.height)) + verticalGap;
         descendantLayerBoxes.push(positions);
         parentPositions = new Map(ordered.map((node, i) => [node.id, positions[i].x]));
     }
+    const bottomY = descendantLayers.length > 0 ? currentY - verticalGap : focusRendered.height;
 
-    // Draw edges
     const edgesSvg =
         renderAncestorEdges(orderedAncestorLayers, ancestorLayerBoxes, 0) +
         renderDescendantEdges(orderedDescendantLayers, descendantLayerBoxes, focusRendered.height);
+
+    return { svg: edgesSvg + boxesSvg, halfWidth, topY, bottomY };
+}
+
+export function renderClassTreeSVG(
+    focus: ClassNode,
+    ancestorLayers: ClassNode[][],
+    descendantLayers: ClassNode[][]
+): string {
+    const { svg } = buildTreeLayout(focus, ancestorLayers, descendantLayers);
 
     return HtmlRoot(
         Svg({
@@ -108,7 +128,7 @@ export function renderClassTreeSVG(
                 Group({
                     id: 'viewport',
                     transform: 'translate(0,0) scale(1)',
-                    children: edgesSvg + boxesSvg,
+                    children: svg,
                 }),
         }) +
         renderViewportScript()

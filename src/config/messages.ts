@@ -13,4 +13,8 @@ export const Messages = {
         projectTree: 'PyTree: Project Tree',
         scanningFiles: 'PyTree Tree: scanning files...',
     },
+
+    options: {
+        showAllFilePaths: "Show all file paths"
+    }
 } as const;
