@@ -1,4 +1,4 @@
-import type { ClassNode } from '../types';
+import type { ClassNode } from '../../types';
 
 export function buildConnectedComponents(classes: Map<string, ClassNode>): ClassNode[][] {
     const parent = new Map<string, string>();

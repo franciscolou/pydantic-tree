@@ -1,11 +1,12 @@
-import type { ClassNode } from '../types';
-import { Svg, Group, HtmlRoot } from './components';
-import { buildTreeLayout } from './render';
-import { renderBaseStyles, renderViewportScript } from './viewport';
+import { ClassNode } from "../../../types";
+import { Group, HtmlRoot, Svg } from "../../components";
+import { buildTreeLayout } from "./single";
+import { renderBaseStyles, renderViewportScript } from "../../utils/viewport";
+
 
 const TREE_GAP = 300;
 
-export function renderMultiTreeSVG(
+export function renderMultiTree(
     trees: Array<{ focus: ClassNode; ancestorLayers: ClassNode[][]; descendantLayers: ClassNode[][] }>
 ): string {
     const layouts = trees.map(t =>

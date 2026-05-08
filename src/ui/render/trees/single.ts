@@ -1,10 +1,11 @@
-import type { ClassNode, BoxMeasures } from '../types';
-import { UI } from '../config';
-import { Svg, Group, HtmlRoot } from './components';
-import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
-import { renderAncestorEdges, renderDescendantEdges } from './edges';
-import { orderByParentBarycenter, orderByChildBarycenter } from './layout';
-import { renderBaseStyles, renderViewportScript } from './viewport';
+
+import { UI } from '../../../config';
+import { BoxMeasures, ClassNode } from '../../../types';
+import { collectInheritedNames, measureClassBox, renderClassBox } from '../classBox';
+import { Group, HtmlRoot, Svg } from '../../components';
+import { renderAncestorEdges, renderDescendantEdges } from '../edges';
+import { orderByChildBarycenter, orderByParentBarycenter } from '../../utils/layout';
+import { renderBaseStyles, renderViewportScript } from '../../utils/viewport';
 
 function measureLayerMaxHeight(layer: ClassNode[], allNodes: Map<string, ClassNode>): number {
     return Math.max(...layer.map(node => measureClassBox(node, collectInheritedNames(node, allNodes)).height));
@@ -35,10 +36,6 @@ function positionLayer(
 
     return { svgs, positions };
 }
-
-/* =========================================================
-   TREE RENDERING
-========================================================= */
 
 export interface TreeLayout {
     svg: string;
@@ -112,7 +109,7 @@ export function buildTreeLayout(
     return { svg: edgesSvg + boxesSvg, halfWidth, topY, bottomY };
 }
 
-export function renderClassTreeSVG(
+export function renderClassTree(
     focus: ClassNode,
     ancestorLayers: ClassNode[][],
     descendantLayers: ClassNode[][]

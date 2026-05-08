@@ -1,6 +1,6 @@
 import { Messages } from '../../config';
 
-export function PathsToggle(): string {
+export function WebViewOptions(): string {
     return `
 <div
     id="paths-toggle"
@@ -32,7 +32,7 @@ export function PathsToggle(): string {
             font-size: 12px;
         "
     >
-        ${Messages.options.showAllFilePaths}
+        ${Messages.webView.options.showAllFilePaths}
     </label>
 </div>`;
 }

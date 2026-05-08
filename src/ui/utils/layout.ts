@@ -1,4 +1,4 @@
-import type { ClassNode } from '../types';
+import type { ClassNode } from '../../types';
 
 export function avgX(ids: string[], positions: Map<string, number>): number {
     const xs = ids.map(id => positions.get(id)).filter((x): x is number => x !== undefined);

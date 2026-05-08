@@ -1,10 +1,10 @@
-import type { ClassNode, BoxMeasures } from '../types';
-import { Theme, UI } from '../config';
-import { Svg, Group, HtmlRoot, Line } from './components';
-import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
-import { renderBaseStyles, renderViewportScript } from './viewport';
-import { drawConnections, hollowArrow, type EdgeConnection } from './edges';
-import { orderByParentBarycenter } from './layout';
+import type { ClassNode, BoxMeasures } from '../../../types';
+import { Theme, UI } from '../../../config';
+import { Svg, Group, HtmlRoot, Line } from '../../components';
+import { renderClassBox, measureClassBox, collectInheritedNames } from '../classBox';
+import { renderBaseStyles, renderViewportScript } from '../../utils/viewport';
+import { drawConnections, hollowArrow, type EdgeConnection } from '../edges';
+import { orderByParentBarycenter } from '../../utils/layout';
 
 const COMPONENT_GAP = 400;
 
@@ -221,7 +221,7 @@ function positionLayerAt(
    FOREST RENDERING
 ========================================================= */
 
-export function renderForestSVG(
+export function renderProjectTree(
     componentLayers: ClassNode[][][],
     allNodes: Map<string, ClassNode>
 ): string {

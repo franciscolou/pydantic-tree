@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
+import { ClassNode } from '../types';
 import { extractClasses } from './parser';
-import type { ClassNode } from './types';
 
 export async function scanWorkspaceClasses(
     progress?: vscode.Progress<{ message?: string; increment?: number }>

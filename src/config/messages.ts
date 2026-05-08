@@ -3,18 +3,40 @@ export const Messages = {
     noClassesFound: 'No Python classes found in the workspace.',
 
     hover: {
-        noBases: 'nenhuma',
-        noAttributes: '_nenhum_',
-        noMethods: '_nenhum_',
+        labels: {
+            showClassTree: "Show Class Tree",
+            showCompleteTree: "Show Complete Tree"
+        }
     },
 
-    titles: {
-        classTree: (name: string) => `Inheritance: ${name}`,
-        projectTree: 'PyTree: Project Tree',
+    status: {
         scanningFiles: 'PyTree Tree: scanning files...',
     },
 
-    options: {
-        showAllFilePaths: "Show all file paths"
+    webView: {
+        titles: {
+            classTree: (name: string) => `Inheritance: ${name}`,
+            projectTree: 'PyTree: Project Tree',
+        },
+        options: {
+            showAllFilePaths: "Show all file paths"
+        },
+    },
+
+    commands: {
+        pickClasses: {
+            labels: {
+                placeholder: "Select tree type",
+
+                simpleTree: {
+                    title: "Simple Tree",
+                    description: "Ancestors only"
+                },
+                completeTree: {
+                    title: "Complete Tree",
+                    description: "Ancestors and descendants"
+                }
+        }
+        }
     }
 } as const;

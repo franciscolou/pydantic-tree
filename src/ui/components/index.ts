@@ -8,4 +8,4 @@ export * from './HtmlRoot';
 export * from './NavGroup';
 export * from './ClipPath';
 export * from './FindBar';
-export * from './PathsToggle';
+export * from './WebViewOptions';

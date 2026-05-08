@@ -1,9 +1,5 @@
-import { Theme, UI } from '../config';
-import { FindBar, PathsToggle } from './components';
-
-/* =========================================================
-   SHARED WEBVIEW STYLES
-========================================================= */
+import { Theme, UI } from '../../config';
+import { FindBar, WebViewOptions } from '../components';
 
 export function renderBaseStyles(): string {
     return `<style>
@@ -31,10 +27,6 @@ export function renderBaseStyles(): string {
 </style>`;
 }
 
-/* =========================================================
-   VIEWPORT SCRIPT (pan / zoom / find / navigate)
-========================================================= */
-
 export function renderViewportScript(opts: { initialScale?: number } = {}): string {
     const initialScale = opts.initialScale ?? 1;
     return `
@@ -55,7 +47,7 @@ export function renderViewportScript(opts: { initialScale?: number } = {}): stri
   #paths-toggle label { cursor: pointer; user-select: none; }
   #paths-toggle input { cursor: pointer; }
 </style>
-${PathsToggle()}
+${WebViewOptions()}
 ${FindBar()}
 <script>
   const svg = document.getElementById("svgRoot");

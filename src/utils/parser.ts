@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ClassNode, MethodParam, MethodDef, AttrDef, BaseRef } from './types';
+import type { ClassNode, MethodParam, MethodDef, AttrDef, BaseRef } from '../types';
 
 /* =========================================================
    REGEX (used only on individual declaration lines)
@@ -160,10 +160,10 @@ const symbolCache = new Map<
    ========================================================= */
 
 /**
- * Returns the classes defined in `document`, keyed by their universal class
+ * Returns the classes defined in `document`, identified by their universal class
  * IDs. Bases are resolved via the language server so that aliased imports
- * (`import X as Y`) and same-name classes from different files are
- * disambiguated to the actual definition site.
+ * and same-name classes from different files are disambiguated to the
+ * actual definition site.
  */
 export async function extractClasses(
     document: vscode.TextDocument

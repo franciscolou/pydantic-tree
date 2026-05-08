@@ -13,9 +13,12 @@ export const Theme = {
         text:         'var(--pt-text)',
         type:         'var(--pt-type)',
         string:       'var(--pt-string)',
+        number:       'var(--pt-number)',
+        bool:         'var(--pt-bool)',
         attribute:    'var(--pt-attribute)',
         method:       'var(--pt-method)',
         override:     'var(--pt-override)',
+
 
         edge:         'var(--pt-edge)',
         edgePalette: [

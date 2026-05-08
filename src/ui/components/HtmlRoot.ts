@@ -19,11 +19,12 @@ export function HtmlRoot(body: string): string {
       --pt-filepath-text: #717171;
 
       /* Semantic syntax colors — dark theme defaults */
-      --pt-type:     #4ec9b0;
-      --pt-string:   #ce9178;
-      --pt-attribute:#9cdcfe;
-      --pt-method:   #dccd79;
-      --pt-override: #c586c0;
+      --pt-type:      #4ec9b0;
+      --pt-string:    #ce9178;
+      --pt-number:    #b5cea8;
+      --pt-attribute: #9cdcfe;
+      --pt-method:    #dccd79;
+      --pt-override:  #c586c0;
       --pt-bool: var(--vscode-symbolIcon-booleanForeground)
 
       /* Edge colors */

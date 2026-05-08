@@ -1,6 +1,6 @@
-import type { ClassNode, BoxMeasures } from '../types';
-import { Theme } from '../config';
-import { Line } from './components';
+import type { ClassNode, BoxMeasures } from '../../types';
+import { Theme } from '../../config';
+import { Line } from '../components';
 
 const LANE_STEP = 18;
 const ATTACH_STEP = 14;

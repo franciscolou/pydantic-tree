@@ -1,10 +1,7 @@
-import type { ClassNode, RenderedBox } from '../types';
-import { Theme, UI } from '../config';
-import { ClassBox, Line, Text, TSpan, NavGroup, ClipPath, Group } from './components';
+import type { ClassNode, RenderedBox } from '../../types';
+import { Theme, UI } from '../../config';
+import { ClassBox, Line, Text, TSpan, NavGroup, ClipPath, Group } from '../components';
 
-/* =========================================================
-   INHERITED NAMES
-========================================================= */
 
 export function collectInheritedNames(
     node: ClassNode,
@@ -31,9 +28,6 @@ export function collectInheritedNames(
     return { attrs, methods };
 }
 
-/* =========================================================
-   TYPE SPAN RENDERING
-========================================================= */
 
 function renderTypeSpans(typeStr: string): string {
     const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]])/);
@@ -54,18 +48,14 @@ function renderTypeSpans(typeStr: string): string {
         .join('');
 }
 
-/* =========================================================
-   PYTHON VALUE TOKENIZER
-========================================================= */
-
-const NUMBER_COLOR = '#b5cea8';
-const BOOL_COLOR   = '#569cd6';
 const BOOL_KEYWORDS = new Set(['True', 'False', 'None']);
 const PY_KEYWORDS   = new Set(['and', 'or', 'not', 'in', 'is', 'lambda', 'if', 'else', 'for']);
+
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
 
 function renderPythonValue(expr: string): string {
     type Tok = { text: string; color: string };
@@ -94,26 +84,26 @@ function renderPythonValue(expr: string): string {
             if (expr[i] === '0' && /[xXbBoO]/.test(expr[i + 1] ?? '')) {
                 let j = i + 2;
                 while (j < expr.length && /[0-9a-fA-F_]/.test(expr[j])) j++;
-                toks.push({ text: expr.slice(i, j), color: NUMBER_COLOR });
+                toks.push({ text: expr.slice(i, j), color: Theme.colors.number });
                 i = j;
             } else {
                 let p = i;
                 while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
-                if (p > i) toks.push({ text: expr.slice(i, p), color: NUMBER_COLOR });
+                if (p > i) toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
                 i = p;
                 if (i < expr.length && expr[i] === '.') {
                     toks.push({ text: '.', color: Theme.colors.text });
                     i++;
                     p = i;
                     while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
-                    if (p > i) toks.push({ text: expr.slice(i, p), color: NUMBER_COLOR });
+                    if (p > i) toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
                     i = p;
                 }
                 if (i < expr.length && /[eE]/.test(expr[i])) {
                     p = i + 1;
                     if (p < expr.length && /[+\-]/.test(expr[p])) p++;
                     while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
-                    toks.push({ text: expr.slice(i, p), color: NUMBER_COLOR });
+                    toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
                     i = p;
                 }
                 if (i < expr.length && /[jJ]/.test(expr[i])) {
@@ -130,7 +120,7 @@ function renderPythonValue(expr: string): string {
             while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) j++;
             const word = expr.slice(i, j);
             const color = BOOL_KEYWORDS.has(word)
-                ? BOOL_COLOR
+                ? Theme.colors.bool
                 : PY_KEYWORDS.has(word)
                     ? Theme.colors.attribute
                     : /[(\[]/.test(expr[j] ?? '')
@@ -155,14 +145,12 @@ function renderPythonValue(expr: string): string {
     return merged.map(tok => TSpan({ fill: tok.color, children: tok.text })).join('');
 }
 
-/* =========================================================
-   METHOD LAYOUT
-========================================================= */
 
 export interface MethodLayout {
     wrapped: boolean;
     measureLines: string[];
 }
+
 
 export function computeMethodLayouts(node: ClassNode, wrapAt: number): MethodLayout[] {
     const indentStr = '    ';
@@ -182,9 +170,6 @@ export function computeMethodLayouts(node: ClassNode, wrapAt: number): MethodLay
     });
 }
 
-/* =========================================================
-   FILE PATH
-========================================================= */
 
 function computeFilePathLines(fileUri: string, boxWidth: number): string[] {
     const { sidePadding, filePathCharWidth } = UI.box;
@@ -204,13 +189,11 @@ function computeFilePathLines(fileUri: string, boxWidth: number): string[] {
     return lines.slice(0, 3);
 }
 
+
 function filePathSectionHeight(lines: string[]): number {
     return UI.box.filePathPadding * 2 + lines.length * UI.box.filePathLineHeight;
 }
 
-/* =========================================================
-   BOX SIZING
-========================================================= */
 
 export function computeBoxWidth(node: ClassNode, layouts: MethodLayout[]): number {
     const { minWidth, maxWidth, charWidth, sidePadding } = UI.box;
@@ -230,6 +213,7 @@ export function computeBoxWidth(node: ClassNode, layouts: MethodLayout[]): numbe
     return Math.min(maxWidth, Math.max(minWidth, longestLineLength * charWidth + sidePadding));
 }
 
+
 export function measureClassBox(
     node: ClassNode,
     inherited: { attrs: Set<string>; methods: Set<string> }
@@ -246,9 +230,6 @@ export function measureClassBox(
     return { width, height: y + methodLineCount * lineHeight + padding };
 }
 
-/* =========================================================
-   CONTENT RENDERING
-========================================================= */
 
 function renderAttributes(
     node: ClassNode,
@@ -297,6 +278,7 @@ function renderAttributes(
     return { svg, endY: y };
 }
 
+
 function renderDivider(y: number, boxWidth: number): { svg: string; endY: number } {
     const dividerY = y + UI.box.sectionGap / 2;
     return {
@@ -304,6 +286,7 @@ function renderDivider(y: number, boxWidth: number): { svg: string; endY: number
         endY: dividerY + UI.box.sectionTopPadding,
     };
 }
+
 
 function renderMethodRows(
     node: ClassNode,
@@ -388,9 +371,6 @@ function renderMethodRows(
     return { svg, endY: y };
 }
 
-/* =========================================================
-   BOX ASSEMBLY
-========================================================= */
 
 export function renderClassBox(
     node: ClassNode,
