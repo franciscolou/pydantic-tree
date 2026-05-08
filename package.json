@@ -37,6 +37,11 @@
                 "command": "pytree.showClassTree",
                 "key": "ctrl+alt+space",
                 "when": "editorTextFocus && editorLangId == python"
+            },
+            {
+                "command": "pytree.showCompleteClassTree",
+                "key": "ctrl+alt+t",
+                "when": "editorTextFocus && editorLangId == python"
             }
         ]
     },
