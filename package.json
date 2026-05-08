@@ -5,6 +5,7 @@
     "description": "Helper extension to visualize inheritance trees for Python classes.",
     "version": "0.0.1",
     "license": "MIT",
+    "publisher": "franciscolou",
     "engines": {
         "vscode": "^1.119.0"
     },
