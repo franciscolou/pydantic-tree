@@ -15,8 +15,10 @@ export const Messages = {
 
     webView: {
         titles: {
-            classTree: (name: string) => `Inheritance: ${name}`,
+            classTree: (name: string) => `PyTree: ${name} Inheritance`,
+            completeClassTree: (name: string) => `PyTree: ${name} Complete Inheritance`,
             projectTree: 'PyTree: Project Tree',
+            pickedClassesTree: 'PyTree: Picked Classes'
         },
         options: {
             showAllFilePaths: "Show all file paths"

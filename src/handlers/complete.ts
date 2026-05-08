@@ -34,7 +34,7 @@ export async function showCompleteClassTree(context: vscode.ExtensionContext, re
     openWebview(
         context,
         'pytreeClassTree',
-        Messages.webView.titles.classTree(focusNode.name),
+        Messages.webView.titles.completeClassTree(focusNode.name),
         renderClassTree(focusNode, ancestors, descendants)
     );
 }

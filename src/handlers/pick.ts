@@ -62,7 +62,7 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
     openWebview(
         context,
         'pytreePickedClasses',
-        'PyTree: Picked Classes',
+        Messages.webView.titles.pickedClassesTree,
         renderMultiTree(trees)
     );
 }
