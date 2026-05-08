@@ -1,10 +1,10 @@
 {
     "name": "pytree",
     "displayName": "PyTree",
-    "description": "Hover feature to quickly look up for inheritances of your class, methods, attributes and more.",
+    "description": "Helper extension to visualize inheritance trees for Python classes.",
     "version": "0.0.1",
     "engines": {
-        "vscode": "^1.107.0"
+        "vscode": "^1.119.0"
     },
     "categories": [
         "Other"
