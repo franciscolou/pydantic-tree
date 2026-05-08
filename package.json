@@ -42,6 +42,10 @@
                 "command": "pytree.showCompleteClassTree",
                 "key": "ctrl+alt+t",
                 "when": "editorTextFocus && editorLangId == python"
+            },
+            {
+                "command": "pytree.showProjectTree",
+                "key": "ctrl+alt+p"
             }
         ]
     },
