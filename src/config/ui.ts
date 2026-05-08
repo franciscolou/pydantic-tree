@@ -18,7 +18,7 @@ export const UI = {
     },
 
     tree: {
-        verticalGap: 120,
+        verticalGap: 150,
         horizontalGap: 160,
         initialTranslate: {
             x: 1000,

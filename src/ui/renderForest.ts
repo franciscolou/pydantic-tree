@@ -3,7 +3,7 @@ import { Theme, UI } from '../config';
 import { Svg, Group, HtmlRoot, Line } from './components';
 import { renderClassBox, measureClassBox, collectInheritedNames } from './classBox';
 import { renderBaseStyles, renderViewportScript } from './viewport';
-import { drawConnections, type EdgeConnection } from './edges';
+import { drawConnections, hollowArrow, type EdgeConnection } from './edges';
 import { orderByParentBarycenter } from './layout';
 
 const COMPONENT_GAP = 400;
@@ -33,7 +33,8 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
     const BOT_OFFSET  = 10; // px above child box for entry horizontal
     const Y_STEP      = 12; // px between stacked exit / entry horizontals
     const MARGIN      = 40; // px beyond component boundary for highway
-    const ATTACH_STEP = 8;  // px between attachment Xs (global, adj + non-adj)
+    const ATTACH_STEP = 14; // px between attachment Xs (global, adj + non-adj)
+    const ARROW_H     = 10; // height of UML arrowhead (must match edges.ts)
     let edges = '';
 
     // ── Collect ALL connections in one flat list ─────────────────────────────
@@ -153,7 +154,8 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
         const sX    = sideXs[n];
         const color = palette[laneIdx[n] % palette.length];
 
-        edges += Line({ x1: pX, y1: c.parentBottom, x2: pX, y2: topY,       stroke: color });
+        edges += hollowArrow(pX, c.parentBottom, color);
+        edges += Line({ x1: pX, y1: c.parentBottom + ARROW_H, x2: pX, y2: topY, stroke: color });
         edges += Line({ x1: pX, y1: topY,            x2: sX, y2: topY,       stroke: color });
         edges += Line({ x1: sX, y1: topY,            x2: sX, y2: botY,       stroke: color });
         edges += Line({ x1: sX, y1: botY,            x2: cX, y2: botY,       stroke: color });

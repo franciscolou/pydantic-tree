@@ -3,7 +3,13 @@ import { Theme } from '../config';
 import { Line } from './components';
 
 const LANE_STEP = 18;
-const ATTACH_STEP = 6;
+const ATTACH_STEP = 14;
+const ARROW_W = 12;
+const ARROW_H = 10;
+
+export function hollowArrow(x: number, y: number, color: string): string {
+    return `<polygon points="${x},${y} ${x - ARROW_W / 2},${y + ARROW_H} ${x + ARROW_W / 2},${y + ARROW_H}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+}
 
 /* =========================================================
    EDGE LANE ASSIGNMENT
@@ -167,7 +173,8 @@ export function drawConnections(
         const color = palette[colorIndices[i] % palette.length];
         const pX = parentAttachXs[i];
         const cX = childAttachXs[i];
-        svg += Line({ x1: pX, y1: parentBottom, x2: pX, y2: edgeY, stroke: color });
+        svg += hollowArrow(pX, parentBottom, color);
+        svg += Line({ x1: pX, y1: parentBottom + ARROW_H, x2: pX, y2: edgeY, stroke: color });
         svg += Line({ x1: pX, y1: edgeY, x2: cX, y2: edgeY, stroke: color });
         svg += Line({ x1: cX, y1: edgeY, x2: cX, y2: childTop, stroke: color });
     });
@@ -234,7 +241,9 @@ export function renderAncestorEdges(
             const drawVerticalIfNeeded = () => {
                 if (!drewVertical) {
                     drewVertical = true;
-                    edges += Line({ x1: parentBox.x, y1: parentBox.y + parentBox.height, x2: parentBox.x, y2: busY, stroke: Theme.colors.edge });
+                    const py = parentBox.y + parentBox.height;
+                    edges += hollowArrow(parentBox.x, py, Theme.colors.edge);
+                    edges += Line({ x1: parentBox.x, y1: py + ARROW_H, x2: parentBox.x, y2: busY, stroke: Theme.colors.edge });
                 }
             };
 
