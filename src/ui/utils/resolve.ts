@@ -1,5 +1,37 @@
 import type { ClassNode } from '../../types';
 
+// Kahn's topological sort for longest-path layering.
+// edges: adjacency list — node → nodes it propagates distance to.
+// Returns node → longest-path depth from any source (in-degree 0) node.
+function longestPathLayers(nodes: string[], edges: Map<string, string[]>): Map<string, number> {
+    const inDeg = new Map<string, number>();
+    for (const n of nodes) {inDeg.set(n, 0);}
+    for (const targets of edges.values()) {
+        for (const t of targets) {inDeg.set(t, (inDeg.get(t) ?? 0) + 1);}
+    }
+
+    const dist = new Map<string, number>();
+    for (const n of nodes) {dist.set(n, 0);}
+
+    const queue: string[] = [];
+    for (const [n, deg] of inDeg) {
+        if (deg === 0) {queue.push(n);}
+    }
+
+    while (queue.length > 0) {
+        const curr = queue.shift()!;
+        const d = dist.get(curr)!;
+        for (const next of (edges.get(curr) ?? [])) {
+            if (d + 1 > dist.get(next)!) {dist.set(next, d + 1);}
+            const newDeg = inDeg.get(next)! - 1;
+            inDeg.set(next, newDeg);
+            if (newDeg === 0) {queue.push(next);}
+        }
+    }
+
+    return dist;
+}
+
 export function buildConnectedComponents(classes: Map<string, ClassNode>): ClassNode[][] {
     const parent = new Map<string, string>();
     for (const id of classes.keys()) {parent.set(id, id);}
@@ -33,41 +65,23 @@ export function buildConnectedComponents(classes: Map<string, ClassNode>): Class
 
 export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
     const idSet = new Set(component.map(n => n.id));
+    const nodeById = new Map(component.map(n => [n.id, n]));
 
-    const inDeg = new Map<string, number>();
-    const children = new Map<string, string[]>();
+    // Edges go from base class → derived classes (root-to-leaf direction)
+    const edges = new Map<string, string[]>();
     for (const node of component) {
-        inDeg.set(node.id, node.bases.filter(b => b.id !== undefined && idSet.has(b.id)).length);
         for (const base of node.bases) {
             if (base.id && idSet.has(base.id)) {
-                if (!children.has(base.id)) {children.set(base.id, []);}
-                children.get(base.id)!.push(node.id);
+                if (!edges.has(base.id)) {edges.set(base.id, []);}
+                edges.get(base.id)!.push(node.id);
             }
         }
     }
 
-    const dist = new Map<string, number>();
-    for (const node of component) {dist.set(node.id, 0);}
-
-    const queue: string[] = [];
-    for (const [id, deg] of inDeg) {
-        if (deg === 0) {queue.push(id);}
-    }
-
-    while (queue.length > 0) {
-        const curr = queue.shift()!;
-        const d = dist.get(curr)!;
-        for (const child of (children.get(curr) ?? [])) {
-            if (d + 1 > (dist.get(child) ?? 0)) {dist.set(child, d + 1);}
-            inDeg.set(child, inDeg.get(child)! - 1);
-            if (inDeg.get(child) === 0) {queue.push(child);}
-        }
-    }
+    const dist = longestPathLayers(component.map(n => n.id), edges);
 
     const layerMap = new Map<number, ClassNode[]>();
-    const nodeById = new Map(component.map(n => [n.id, n]));
-    for (const id of dist.keys()) {
-        const d = dist.get(id)!;
+    for (const [id, d] of dist) {
         if (!layerMap.has(d)) {layerMap.set(d, []);}
         layerMap.get(d)!.push(nodeById.get(id)!);
     }
@@ -86,7 +100,6 @@ export function collectAncestors(
     classId: string,
     classes: Map<string, ClassNode>
 ): string[][] {
-    // Collect all reachable ancestors
     const allAncestors = new Set<string>();
     const stack: string[] = [classId];
     while (stack.length > 0) {
@@ -100,41 +113,20 @@ export function collectAncestors(
     }
     if (allAncestors.size === 0) {return [];}
 
-    // Assign each ancestor its longest-path depth from classId via Kahn's topological sort.
-    // Longest path ensures that if A is an ancestor of B, A is always placed in a higher layer than B,
-    // even when A is also reachable via a shorter path (e.g. diamond inheritance).
     const subgraph = new Set([classId, ...allAncestors]);
 
-    // in-degree = number of children each node has within the subgraph
-    const inDegree = new Map<string, number>();
-    for (const n of subgraph) {inDegree.set(n, 0);}
+    // Edges go from derived class → base classes (focus-to-ancestor direction).
+    // Longest-path ensures diamond ancestors are placed above all paths that reach them.
+    const edges = new Map<string, string[]>();
     for (const n of subgraph) {
-        for (const base of classes.get(n)?.bases ?? []) {
-            if (base.id && subgraph.has(base.id)) {inDegree.set(base.id, inDegree.get(base.id)! + 1);}
-        }
+        const targets = (classes.get(n)?.bases ?? [])
+            .filter(b => b.id && subgraph.has(b.id))
+            .map(b => b.id!);
+        if (targets.length) {edges.set(n, targets);}
     }
 
-    const dist = new Map<string, number>();
-    for (const n of subgraph) {dist.set(n, 0);}
+    const dist = longestPathLayers([...subgraph], edges);
 
-    const queue: string[] = [];
-    for (const [n, deg] of inDegree) {
-        if (deg === 0) {queue.push(n);} // only classId starts here
-    }
-
-    while (queue.length > 0) {
-        const curr = queue.shift()!;
-        const d = dist.get(curr)!;
-        for (const base of classes.get(curr)?.bases ?? []) {
-            if (!base.id || !subgraph.has(base.id)) {continue;}
-            if (d + 1 > dist.get(base.id)!) {dist.set(base.id, d + 1);}
-            const newDeg = inDegree.get(base.id)! - 1;
-            inDegree.set(base.id, newDeg);
-            if (newDeg === 0) {queue.push(base.id);}
-        }
-    }
-
-    // Group by depth (depth 1 = layer 0, depth 2 = layer 1, …)
     const layerMap = new Map<number, string[]>();
     for (const ancestor of allAncestors) {
         const d = dist.get(ancestor)!;
