@@ -6,6 +6,7 @@
     "version": "0.0.1",
     "license": "MIT",
     "publisher": "franciscolou",
+    "repository": "https://github.com/franciscolou/pytree",
     "engines": {
         "vscode": "^1.119.0"
     },
