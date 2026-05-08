@@ -6,7 +6,7 @@ import { collectAncestors, collectDescendants, buildConnectedComponents, buildCo
 import { renderForestSVG } from './ui/renderForest';
 import { renderMultiTreeSVG } from './ui/renderMultiTree';
 import { scanWorkspaceClasses } from './projectScanner';
-import { renderClassMarkdown } from './ui/hover';
+import { renderClassHover } from './ui/hover';
 import { Messages } from './config';
 
 /* =========================================================
@@ -25,6 +25,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
+type ClassRef = { fileUri: string; line: number };
+
 /* =========================================================
    REGISTRATIONS
 ========================================================= */
@@ -34,17 +36,19 @@ function registerHoverProvider(): vscode.Disposable {
         async provideHover(document, position) {
             const node = await getClassUnderCursor(document, position);
             if (!node) return;
-            return new vscode.Hover(new vscode.MarkdownString(renderClassMarkdown(node)));
+            const md = new vscode.MarkdownString(renderClassHover(node));
+            md.isTrusted = true;
+            return new vscode.Hover(md);
         },
     });
 }
 
 function registerShowClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand('pytree.showClassTree', () => showClassTree(context));
+    return vscode.commands.registerCommand('pytree.showClassTree', (ref?: ClassRef) => showClassTree(context, ref));
 }
 
 function registerShowCompleteClassCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand('pytree.showCompleteClassTree', () => showCompleteClassTree(context));
+    return vscode.commands.registerCommand('pytree.showCompleteClassTree', (ref?: ClassRef) => showCompleteClassTree(context, ref));
 }
 
 function registerShowProjectTreeCommand(context: vscode.ExtensionContext): vscode.Disposable {
@@ -59,18 +63,14 @@ function registerPickClassesCommand(context: vscode.ExtensionContext): vscode.Di
    COMMAND HANDLERS
 ========================================================= */
 
-async function showClassTree(context: vscode.ExtensionContext) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) return;
-
-    const { document, selection } = editor;
-    const focusNode = await getClassUnderCursor(document, selection.active);
-
+async function showClassTree(context: vscode.ExtensionContext, ref?: ClassRef) {
+    const focusNode = await resolveClassNode(ref);
     if (!focusNode) {
         vscode.window.showInformationMessage(Messages.noClassUnderCursor);
         return;
     }
 
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(focusNode.fileUri));
     const classes = await buildInheritanceMap(focusNode.id, document);
     const ancestors = resolveLayeredNodes(collectAncestors(focusNode.id, classes), classes);
 
@@ -82,18 +82,14 @@ async function showClassTree(context: vscode.ExtensionContext) {
     );
 }
 
-async function showCompleteClassTree(context: vscode.ExtensionContext) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) return;
-
-    const { document, selection } = editor;
-    const focusNode = await getClassUnderCursor(document, selection.active);
-
+async function showCompleteClassTree(context: vscode.ExtensionContext, ref?: ClassRef) {
+    const focusNode = await resolveClassNode(ref);
     if (!focusNode) {
         vscode.window.showInformationMessage(Messages.noClassUnderCursor);
         return;
     }
 
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(focusNode.fileUri));
     let classes = await buildInheritanceMap(focusNode.id, document);
 
     await vscode.window.withProgress(
@@ -204,6 +200,20 @@ async function showPickClassesTree(context: vscode.ExtensionContext) {
 /* =========================================================
    CLASS RESOLUTION
 ========================================================= */
+
+async function resolveClassNode(ref?: ClassRef): Promise<ClassNode | undefined> {
+    if (ref) {
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(ref.fileUri));
+        const classes = await extractClasses(document);
+        for (const node of classes.values()) {
+            if (node.definedAtLine === ref.line) return node;
+        }
+        return undefined;
+    }
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return undefined;
+    return getClassUnderCursor(editor.document, editor.selection.active);
+}
 
 async function getClassUnderCursor(
     document: vscode.TextDocument,
