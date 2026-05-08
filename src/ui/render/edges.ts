@@ -27,7 +27,7 @@ export interface EdgeConnection {
 // Lanes are ordered center-outward: 0, +STEP, -STEP, +2*STEP, -2*STEP, ...
 function assignEdgeLanes(segments: [number, number][], step: number): number[] {
     const n = segments.length;
-    if (n <= 1) return new Array(n).fill(0);
+    if (n <= 1) {return new Array(n).fill(0);}
 
     const normalized = segments.map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number]);
 
@@ -46,7 +46,7 @@ function assignEdgeLanes(segments: [number, number][], step: number): number[] {
             const conflicts = occupied.some(([ol, or_]) => left < or_ && right > ol);
             if (!conflicts) {
                 result[i] = offset;
-                if (!laneRanges.has(offset)) laneRanges.set(offset, []);
+                if (!laneRanges.has(offset)) {laneRanges.set(offset, []);}
                 laneRanges.get(offset)!.push([left, right]);
                 break;
             }
@@ -85,15 +85,15 @@ function connectionsIntersect(
     cj: EdgeConnection, eyj: number
 ): boolean {
     // H_i vs parent-vertical_j and child-vertical_j
-    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.parentX, cj.parentBottom, eyj)) return true;
-    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.childX, eyj, cj.childTop)) return true;
+    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.parentX, cj.parentBottom, eyj)) {return true;}
+    if (hVIntersect(eyi, ci.parentX, ci.childX, cj.childX, eyj, cj.childTop)) {return true;}
     // H_j vs parent-vertical_i and child-vertical_i
-    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.parentX, ci.parentBottom, eyi)) return true;
-    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.childX, eyi, ci.childTop)) return true;
+    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.parentX, ci.parentBottom, eyi)) {return true;}
+    if (hVIntersect(eyj, cj.parentX, cj.childX, ci.childX, eyi, ci.childTop)) {return true;}
     // Same parent → parent verticals overlap on the same X
-    if (ci.parentX === cj.parentX && rangesOverlap(ci.parentBottom, eyi, cj.parentBottom, eyj)) return true;
+    if (ci.parentX === cj.parentX && rangesOverlap(ci.parentBottom, eyi, cj.parentBottom, eyj)) {return true;}
     // Same child → child verticals overlap on the same X
-    if (ci.childX === cj.childX && rangesOverlap(eyi, ci.childTop, eyj, cj.childTop)) return true;
+    if (ci.childX === cj.childX && rangesOverlap(eyi, ci.childTop, eyj, cj.childTop)) {return true;}
     return false;
 }
 
@@ -110,7 +110,7 @@ function computeAttachXs(ownXs: number[], otherXs: number[]): number[] {
 
     const groups = new Map<number, number[]>();
     for (let i = 0; i < n; i++) {
-        if (!groups.has(ownXs[i])) groups.set(ownXs[i], []);
+        if (!groups.has(ownXs[i])) {groups.set(ownXs[i], []);}
         groups.get(ownXs[i])!.push(i);
     }
 
@@ -139,7 +139,7 @@ export function drawConnections(
     busY: number,
     palette: readonly string[]
 ): string {
-    if (connections.length === 0) return '';
+    if (connections.length === 0) {return '';}
 
     const n = connections.length;
     const laneOffsets = assignEdgeLanes(connections.map(c => [c.parentX, c.childX]), LANE_STEP);
@@ -163,7 +163,7 @@ export function drawConnections(
             }
         }
         let c = 0;
-        while (used.has(c)) c++;
+        while (used.has(c)) {c++;}
         colorIndices[i] = c;
     }
 
@@ -192,7 +192,7 @@ export function renderAncestorEdges(
 ): string {
     let edges = '';
 
-    if (layerBoxes.length === 0) return edges;
+    if (layerBoxes.length === 0) {return edges;}
 
     // Layer 0: direct parents → focus, drawn with palette colors for visibility
     const layer0Bottom = Math.max(...layerBoxes[0].map(box => box.y + box.height));
@@ -255,7 +255,7 @@ export function renderAncestorEdges(
                     .map((childNode, ci) => ({ childNode, childBox: childBoxes[ci] }))
                     .filter(({ childNode }) => (childNode.bases ?? []).some(b => b.id === parentNode.id));
 
-                if (children.length === 0) continue;
+                if (children.length === 0) {continue;}
 
                 const childBusY = (
                     Math.max(...layerBoxes[j + 1].map(box => box.y + box.height)) +
@@ -263,7 +263,7 @@ export function renderAncestorEdges(
                 ) / 2;
 
                 const nearbyBoxes: BoxMeasures[] = [];
-                for (let k = j; k <= i; k++) nearbyBoxes.push(...layerBoxes[k]);
+                for (let k = j; k <= i; k++) {nearbyBoxes.push(...layerBoxes[k]);}
                 const margin = 40;
 
                 for (const { childBox } of children) {
@@ -295,7 +295,7 @@ export function renderDescendantEdges(
 ): string {
     let edges = '';
 
-    if (layerBoxes.length === 0) return edges;
+    if (layerBoxes.length === 0) {return edges;}
 
     // Layer 0: focus → direct children, drawn with palette colors for visibility
     const layer0Top = Math.min(...layerBoxes[0].map(box => box.y));

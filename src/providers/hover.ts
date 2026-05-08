@@ -6,7 +6,7 @@ export const HoverProvider: vscode.HoverProvider = {
     async provideHover(document, position) {
         const node = await getClassUnderCursor(document, position);
 
-        if (!node) return;
+        if (!node) {return;}
 
         const md = new vscode.MarkdownString(
             renderClassHover(node)

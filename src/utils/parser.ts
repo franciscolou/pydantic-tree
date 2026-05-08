@@ -69,8 +69,8 @@ function extractMethod(
 function bracketDepth(text: string): number {
     let depth = 0;
     for (const ch of text) {
-        if (ch === '(' || ch === '[' || ch === '{') depth++;
-        else if (ch === ')' || ch === ']' || ch === '}') depth--;
+        if (ch === '(' || ch === '[' || ch === '{') {depth++;}
+        else if (ch === ')' || ch === ']' || ch === '}') {depth--;}
     }
     return depth;
 }
@@ -170,14 +170,14 @@ export async function extractClasses(
 ): Promise<Map<string, ClassNode>> {
     const key = document.uri.toString();
     const cached = symbolCache.get(key);
-    if (cached?.version === document.version) return cached.classes;
+    if (cached?.version === document.version) {return cached.classes;}
 
     const symbols = await getDocumentSymbols(document.uri);
-    if (!symbols) return new Map();
+    if (!symbols) {return new Map();}
 
     const classes = new Map<string, ClassNode>();
     for (const sym of symbols) {
-        if (sym.kind !== vscode.SymbolKind.Class) continue;
+        if (sym.kind !== vscode.SymbolKind.Class) {continue;}
         const node = await extractClassFromSymbol(sym, document);
         classes.set(node.id, node);
     }
@@ -204,10 +204,10 @@ export async function buildInheritanceMap(
     while (queue.length > 0) {
         const id = queue.shift()!;
         const node = merged.get(id);
-        if (!node) continue;
+        if (!node) {continue;}
 
         for (const base of node.bases) {
-            if (!base.id || visited.has(base.id)) continue;
+            if (!base.id || visited.has(base.id)) {continue;}
             visited.add(base.id);
 
             if (merged.has(base.id)) {
@@ -216,7 +216,7 @@ export async function buildInheritanceMap(
             }
 
             const resolved = await loadClassById(base.id);
-            if (!resolved) continue;
+            if (!resolved) {continue;}
 
             merged.set(resolved.id, resolved);
             queue.push(resolved.id);
@@ -237,7 +237,7 @@ export async function buildInheritanceMap(
  */
 async function loadClassById(id: string): Promise<ClassNode | undefined> {
     const hashIdx = id.indexOf('#');
-    if (hashIdx < 0) return undefined;
+    if (hashIdx < 0) {return undefined;}
     const fileUri = id.slice(0, hashIdx);
 
     let targetDoc: vscode.TextDocument;
@@ -265,17 +265,17 @@ async function resolveBases(
     classSymbol: vscode.DocumentSymbol
 ): Promise<BaseRef[]> {
     const match = lineText.match(CLASS_BASES_REGEX);
-    if (!match?.[1]?.trim()) return [];
+    if (!match?.[1]?.trim()) {return [];}
 
     const rawBases = match[1].split(',').map(b => b.trim()).filter(Boolean);
     const parenIdx = lineText.indexOf('(');
-    if (parenIdx < 0) return rawBases.map(name => ({ name }));
+    if (parenIdx < 0) {return rawBases.map(name => ({ name }));}
 
     let searchFrom = parenIdx;
     return Promise.all(rawBases.map(async raw => {
         const bareName = raw.match(BARE_NAME_REGEX)?.[0] ?? raw;
         const idx = lineText.indexOf(bareName, searchFrom);
-        if (idx < 0) return { name: raw };
+        if (idx < 0) {return { name: raw };}
         searchFrom = idx + bareName.length;
 
         const id = await resolveBaseId(
@@ -298,14 +298,14 @@ async function resolveBaseId(
         fromDoc.uri,
         position
     );
-    if (!locations?.length) return undefined;
+    if (!locations?.length) {return undefined;}
 
     const loc = locations[0];
     const targetSymbols = await getDocumentSymbols(loc.uri);
-    if (!targetSymbols) return undefined;
+    if (!targetSymbols) {return undefined;}
 
     const targetSym = findEnclosingClass(targetSymbols, loc.range.start);
-    if (!targetSym) return undefined;
+    if (!targetSym) {return undefined;}
 
     return makeClassId(loc.uri.toString(), targetSym.name, targetSym.range.start.line);
 }
@@ -343,12 +343,12 @@ function splitParams(raw: string): string[] {
         else if (ch === ',' && depth === 0) { parts.push(current); current = ''; }
         else { current += ch; }
     }
-    if (current) parts.push(current);
+    if (current) {parts.push(current);}
     return parts;
 }
 
 function parseParams(raw: string): MethodParam[] {
-    if (!raw.trim()) return [];
+    if (!raw.trim()) {return [];}
 
     return splitParams(raw)
         .map(p => p.trim())

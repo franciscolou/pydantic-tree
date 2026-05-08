@@ -21,7 +21,7 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
         ],
         { placeHolder: Messages.commands.pickClasses.labels.placeholder }
     );
-    if (!treeTypeItem) return;
+    if (!treeTypeItem) {return;}
     const isComplete = treeTypeItem.label === 'Complete Tree';
 
     let allClasses = new Map<string, ClassNode>();
@@ -48,7 +48,7 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
         placeHolder: 'Select classes to display',
         canPickMany: true,
     });
-    if (!selected || selected.length === 0) return;
+    if (!selected || selected.length === 0) {return;}
 
     const trees = selected.map(item => {
         const focus = allClasses.get(item.nodeId)!;

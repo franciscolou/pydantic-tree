@@ -53,8 +53,8 @@ export function buildTreeLayout(
 
     const allNodes = new Map<string, ClassNode>();
     allNodes.set(focus.id, focus);
-    for (const layer of ancestorLayers) for (const node of layer) allNodes.set(node.id, node);
-    for (const layer of descendantLayers) for (const node of layer) allNodes.set(node.id, node);
+    for (const layer of ancestorLayers) {for (const node of layer) {allNodes.set(node.id, node);}}
+    for (const layer of descendantLayers) {for (const node of layer) {allNodes.set(node.id, node);}}
 
     const layerHalfWidth = (layer: ClassNode[]): number => {
         const sizes = layer.map(node => measureClassBox(node, collectInheritedNames(node, allNodes)));

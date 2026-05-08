@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ClassRef } from './types';
-import { showClassTree, showCompleteClassTree, showProjectTree, showPickClassesTree } from "./handlers"
+import { showClassTree, showCompleteClassTree, showProjectTree, showPickClassesTree } from "./handlers";
 import { HoverProvider } from "./providers/hover";
 
 export function activate(context: vscode.ExtensionContext) {

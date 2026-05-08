@@ -15,14 +15,14 @@ export function collectInheritedNames(
         .filter((id): id is string => id !== undefined);
     while (stack.length) {
         const id = stack.pop()!;
-        if (visited.has(id)) continue;
+        if (visited.has(id)) {continue;}
         visited.add(id);
         const base = allNodes.get(id);
-        if (!base) continue;
-        for (const attr of base.attributes) attrs.add(attr.name);
-        for (const method of base.methods) methods.add(method.name);
+        if (!base) {continue;}
+        for (const attr of base.attributes) {attrs.add(attr.name);}
+        for (const method of base.methods) {methods.add(method.name);}
         for (const b of base.bases) {
-            if (b.id) stack.push(b.id);
+            if (b.id) {stack.push(b.id);}
         }
     }
     return { attrs, methods };
@@ -33,7 +33,7 @@ function renderTypeSpans(typeStr: string): string {
     const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]])/);
     return tokens
         .map(token => {
-            if (!token) return '';
+            if (!token) {return '';}
             if (
                 (token.startsWith("'") && token.endsWith("'")) ||
                 (token.startsWith('"') && token.endsWith('"'))
@@ -71,7 +71,7 @@ function renderPythonValue(expr: string): string {
             let j = i + raw.length;
             while (j < expr.length) {
                 if (expr.startsWith(q, j)) { j += q.length; break; }
-                if (expr[j] === '\\') j++;
+                if (expr[j] === '\\') {j++;}
                 j++;
             }
             toks.push({ text: escapeXml(expr.slice(i, j)), color: Theme.colors.string });
@@ -83,26 +83,26 @@ function renderPythonValue(expr: string): string {
         if (/[0-9]/.test(expr[i]) || (expr[i] === '.' && /[0-9]/.test(expr[i + 1] ?? ''))) {
             if (expr[i] === '0' && /[xXbBoO]/.test(expr[i + 1] ?? '')) {
                 let j = i + 2;
-                while (j < expr.length && /[0-9a-fA-F_]/.test(expr[j])) j++;
+                while (j < expr.length && /[0-9a-fA-F_]/.test(expr[j])) {j++;}
                 toks.push({ text: expr.slice(i, j), color: Theme.colors.number });
                 i = j;
             } else {
                 let p = i;
-                while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
-                if (p > i) toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
+                while (p < expr.length && /[0-9_]/.test(expr[p])) {p++;}
+                if (p > i) {toks.push({ text: expr.slice(i, p), color: Theme.colors.number });}
                 i = p;
                 if (i < expr.length && expr[i] === '.') {
                     toks.push({ text: '.', color: Theme.colors.text });
                     i++;
                     p = i;
-                    while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
-                    if (p > i) toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
+                    while (p < expr.length && /[0-9_]/.test(expr[p])) {p++;}
+                    if (p > i) {toks.push({ text: expr.slice(i, p), color: Theme.colors.number });}
                     i = p;
                 }
                 if (i < expr.length && /[eE]/.test(expr[i])) {
                     p = i + 1;
-                    if (p < expr.length && /[+\-]/.test(expr[p])) p++;
-                    while (p < expr.length && /[0-9_]/.test(expr[p])) p++;
+                    if (p < expr.length && /[+\-]/.test(expr[p])) {p++;}
+                    while (p < expr.length && /[0-9_]/.test(expr[p])) {p++;}
                     toks.push({ text: expr.slice(i, p), color: Theme.colors.number });
                     i = p;
                 }
@@ -117,7 +117,7 @@ function renderPythonValue(expr: string): string {
         // Identifier / keyword
         if (/[a-zA-Z_]/.test(expr[i])) {
             let j = i;
-            while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) j++;
+            while (j < expr.length && /[a-zA-Z0-9_]/.test(expr[j])) {j++;}
             const word = expr.slice(i, j);
             const color = BOOL_KEYWORDS.has(word)
                 ? Theme.colors.bool
@@ -139,8 +139,8 @@ function renderPythonValue(expr: string): string {
     const merged: Tok[] = [];
     for (const tok of toks) {
         if (merged.length && merged[merged.length - 1].color === tok.color)
-            merged[merged.length - 1].text += tok.text;
-        else merged.push({ ...tok });
+            {merged[merged.length - 1].text += tok.text;}
+        else {merged.push({ ...tok });}
     }
     return merged.map(tok => TSpan({ fill: tok.color, children: tok.text })).join('');
 }
@@ -158,7 +158,7 @@ export function computeMethodLayouts(node: ClassNode, wrapAt: number): MethodLay
         const singleLine =
             `${method.name}(${method.params.map(param => `${param.name}${param.type ? `: ${param.type}` : ''}`).join(', ')})` +
             `${method.returnType ? ` -> ${method.returnType}` : ''}`;
-        if (singleLine.length <= wrapAt) return { wrapped: false, measureLines: [singleLine] };
+        if (singleLine.length <= wrapAt) {return { wrapped: false, measureLines: [singleLine] };}
         return {
             wrapped: true,
             measureLines: [
@@ -175,17 +175,17 @@ function computeFilePathLines(fileUri: string, boxWidth: number): string[] {
     const { sidePadding, filePathCharWidth } = UI.box;
     const maxChars = Math.floor((boxWidth - sidePadding) / filePathCharWidth);
     const path = decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
-    if (path.length <= maxChars) return [path];
+    if (path.length <= maxChars) {return [path];}
     const lines: string[] = [];
     let remaining = path;
     while (remaining.length > maxChars) {
         let breakAt = remaining.lastIndexOf('/', maxChars);
-        if (breakAt <= 0) breakAt = maxChars;
-        else breakAt++;
+        if (breakAt <= 0) {breakAt = maxChars;}
+        else {breakAt++;}
         lines.push(remaining.slice(0, breakAt));
         remaining = remaining.slice(breakAt);
     }
-    if (remaining) lines.push(remaining);
+    if (remaining) {lines.push(remaining);}
     return lines.slice(0, 3);
 }
 
@@ -199,7 +199,7 @@ export function computeBoxWidth(node: ClassNode, layouts: MethodLayout[]): numbe
     const { minWidth, maxWidth, charWidth, sidePadding } = UI.box;
     const attrTexts = node.attributes.flatMap(attr => {
         const base = `${attr.name}: ${attr.type ?? '?'}`;
-        if (!attr.defaultValue) return [base];
+        if (!attr.defaultValue) {return [base];}
         const [first, ...rest] = attr.defaultValue.split('\n');
         return [`${base} = ${first}`, ...rest];
     });
@@ -225,7 +225,7 @@ export function measureClassBox(
     const attrLineCount = node.attributes.reduce((sum, attr) =>
         sum + (attr.defaultValue ? attr.defaultValue.split('\n').length : 1), 0);
     let y = headerHeight + sectionTopPadding + attrLineCount * lineHeight;
-    if (node.attributes.length && node.methods.length) y += sectionGap / 2 + sectionTopPadding;
+    if (node.attributes.length && node.methods.length) {y += sectionGap / 2 + sectionTopPadding;}
     const methodLineCount = layouts.reduce((sum, layout) => sum + layout.measureLines.length, 0);
     return { width, height: y + methodLineCount * lineHeight + padding };
 }

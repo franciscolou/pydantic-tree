@@ -17,7 +17,7 @@ const COMPONENT_GAP = 400;
 function spreadAttachXs(ownXs: number[], otherXs: number[], step: number): number[] {
     const result = ownXs.slice();
     const groups = new Map<number, number[]>();
-    ownXs.forEach((x, i) => { if (!groups.has(x)) groups.set(x, []); groups.get(x)!.push(i); });
+    ownXs.forEach((x, i) => { if (!groups.has(x)) {groups.set(x, []);} groups.get(x)!.push(i); });
     for (const [ownX, idxs] of groups) {
         if (idxs.length === 1) { result[idxs[0]] = ownX; continue; }
         idxs.sort((a, b) => otherXs[a] - otherXs[b]);
@@ -75,7 +75,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
             });
         }
     }
-    if (all.length === 0) return edges;
+    if (all.length === 0) {return edges;}
 
     // Global pX / cX spread across ALL connections from / to each node.
     // Passing pre-computed values as parentX/childX into EdgeConnection makes
@@ -91,7 +91,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
         ) / 2;
         const connections: EdgeConnection[] = [];
         all.forEach((c, k) => {
-            if (c.adjGap !== i) return;
+            if (c.adjGap !== i) {return;}
             connections.push({ parentX: gPX[k], parentBottom: c.parentBottom, childX: gCX[k], childTop: c.childTop });
         });
         edges += drawConnections(connections, busY, Theme.colors.edgePalette);
@@ -99,7 +99,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
 
     // ── Non-adjacent connections: lateral routing ────────────────────────────
     const naIdxs = all.map((c, k) => ({ c, k })).filter(({ c }) => c.adjGap < 0);
-    if (naIdxs.length === 0) return edges;
+    if (naIdxs.length === 0) {return edges;}
 
     const allBoxes = layerBoxes.flat();
     const rightBase = Math.max(...allBoxes.map(b => b.x + b.width / 2)) + MARGIN;
@@ -112,8 +112,8 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
     const assignYOffsets = (keys: number[]): number[] => {
         const offsets = new Array<number>(keys.length).fill(0);
         const groups = new Map<number, number[]>();
-        keys.forEach((key, i) => { if (!groups.has(key)) groups.set(key, []); groups.get(key)!.push(i); });
-        for (const idxs of groups.values()) idxs.forEach((idx, pos) => { offsets[idx] = pos * Y_STEP; });
+        keys.forEach((key, i) => { if (!groups.has(key)) {groups.set(key, []);} groups.get(key)!.push(i); });
+        for (const idxs of groups.values()) {idxs.forEach((idx, pos) => { offsets[idx] = pos * Y_STEP; });}
         return offsets;
     };
 
@@ -130,7 +130,7 @@ function renderComponentEdges(layers: ClassNode[][], layerBoxes: BoxMeasures[][]
         const ranges = goRight[n] ? rightRanges : leftRanges;
         let lane = 0;
         for (;;) {
-            if (!ranges[lane]) ranges[lane] = [];
+            if (!ranges[lane]) {ranges[lane] = [];}
             if (!ranges[lane].some(([t, b]) => topYs[n] < b && botYs[n] > t)) {
                 ranges[lane].push([topYs[n], botYs[n]]);
                 laneIdx[n] = lane;

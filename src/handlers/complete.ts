@@ -23,7 +23,7 @@ export async function showCompleteClassTree(context: vscode.ExtensionContext, re
         async progress => {
             const allClasses = await scanWorkspaceClasses(progress);
             for (const [id, node] of allClasses) {
-                if (!classes.has(id)) classes.set(id, node);
+                if (!classes.has(id)) {classes.set(id, node);}
             }
         }
     );

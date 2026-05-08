@@ -19,7 +19,7 @@ export function openWebview(
     panel.webview.html = html;
 
     panel.webview.onDidReceiveMessage(async msg => {
-    if (msg.command !== 'navigate') return;
+    if (msg.command !== 'navigate') {return;}
 
     const uri = vscode.Uri.parse(msg.fileUri);
     const pos = new vscode.Position(msg.line, 0);
