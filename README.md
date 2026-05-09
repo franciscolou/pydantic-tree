@@ -66,13 +66,13 @@ Hovering over any class name in a Python file shows a small card with two clicka
 
 Every tree view is fully interactive:
 
-| Action               | How                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| **Pan**              | Click and drag                                                                       |
-| **Zoom**             | Scroll wheel (30 % – 300 %)                                                          |
-| **Find**             | `Ctrl+F` / `Cmd+F` — searches class names, methods, atributes, any text |
-| **Navigate matches** | `Enter` / `Shift+Enter`, or the Prev / Next buttons                                  |
-| **Jump to source**   | Click any class name, attribute, or method — opens the file at the definition line   |
+| Action               | How                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| **Pan**              | Click and drag                                                                     |
+| **Zoom**             | Scroll wheel                                                                       |
+| **Find**             | `Ctrl+F` / `Cmd+F` — searches class names, methods, atributes, any text            |
+| **Navigate matches** | `Enter` / `Shift+Enter`, or the Next / Prev buttons                                |
+| **Jump to source**   | Click any class name, attribute, or method — opens the file at the definition line |
 
 Pan position, zoom level, and the file-paths checkbox state are persisted per webview session.
 
