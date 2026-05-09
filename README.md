@@ -12,7 +12,7 @@ Open a tree focused on the class under your cursor, showing all ancestor layers 
 
 **Trigger:** `Ctrl + Alt + Space` · Command Palette: `PyTree: Class Tree` · Hover link
 
-<!-- VIDEO PLACEHOLDER: simple tree demo -->
+![Demo for Simple Tree](assets/gifs/simple.gif)
 
 ---
 
@@ -22,7 +22,7 @@ Same as the Simple Tree, but also scans the entire workspace to find every subcl
 
 **Trigger:** `Ctrl + Alt + T` · Command Palette: `PyTree: Complete Class Tree` · Hover link
 
-<!-- VIDEO PLACEHOLDER: complete tree demo -->
+![Demo for Complete Tree](assets/gifs/complete.gif)
 
 ---
 
@@ -32,7 +32,7 @@ Renders **all** Python classes in the workspace at once, grouped by their connec
 
 **Trigger:** `Ctrl + Alt + P` · Command Palette: `PyTree: Project Tree`
 
-<!-- VIDEO PLACEHOLDER: project tree demo -->
+![Demo for Project Tree](assets/gifs/project.gif)
 
 ---
 
@@ -42,7 +42,7 @@ Lets you hand-pick one or more classes from a searchable list and render them si
 
 **Trigger:** Command Palette: `PyTree: Pick Classes...`
 
-<!-- VIDEO PLACEHOLDER: pick classes demo -->
+![Demo for Pick Classes Tree](assets/gifs/pick.gif)
 
 ---
 
