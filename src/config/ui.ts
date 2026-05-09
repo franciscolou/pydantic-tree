@@ -27,8 +27,6 @@ export const UI = {
     },
 
     zoom: {
-        min: 0.3,
-        max: 3,
         step: 0.1,
     },
 

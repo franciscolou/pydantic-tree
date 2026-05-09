@@ -64,8 +64,6 @@ ${FindBar()}
   const vscode = acquireVsCodeApi();
 
   const PAN_SENSITIVITY = ${UI.pan.sensitivity};
-  const MIN_SCALE = ${UI.zoom.min};
-  const MAX_SCALE = ${UI.zoom.max};
   const ZOOM_STEP = ${UI.zoom.step};
   const CLICK_THRESHOLD = 4;
 
@@ -150,10 +148,7 @@ ${FindBar()}
     const dir = e.deltaY < 0 ? 1 : -1;
     const factor = 1 + dir * ZOOM_STEP;
 
-    const newScale = Math.min(
-      MAX_SCALE,
-      Math.max(MIN_SCALE, scale * factor)
-    );
+    const newScale = scale * factor;
 
     tx = mx - (mx - tx) * (newScale / scale);
     ty = my - (my - ty) * (newScale / scale);
