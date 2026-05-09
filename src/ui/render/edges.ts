@@ -4,6 +4,7 @@ import { Line } from '../components';
 
 const LANE_STEP = 18;
 const ATTACH_STEP = 14;
+const BYPASS_MARGIN = 40;
 const ARROW_W = 12;
 const ARROW_H = 10;
 
@@ -48,7 +49,7 @@ function assignEdgeLanes(segments: [number, number][], step: number): number[] {
         for (const offset of laneOrder) {
             const occupied = laneRanges.get(offset) ?? [];
             const conflicts = occupied.some(
-                ([ol, or_]) => left < or_ && right > ol
+                ([ol, rangeEnd]) => left < rangeEnd && right > ol
             );
             if (!conflicts) {
                 result[i] = offset;
@@ -160,39 +161,42 @@ function connectionsIntersect(
    CONNECTION DRAWING
 ========================================================= */
 
-// For each connection, computes a spread X at ownXs[i] so that connections sharing
-// the same attachment node are offset horizontally. Offsets are ordered to mirror
-// the order of otherXs, minimising visual crossing at the attachment point.
-function computeAttachXs(ownXs: number[], otherXs: number[]): number[] {
-    const n = ownXs.length;
-    const result = new Array<number>(n);
-
+// Spreads attachment X positions for connections sharing the same node,
+// ordered by the other endpoint's X to minimise crossing at the attachment.
+export function spreadAttachXs(
+    ownXs: number[],
+    otherXs: number[],
+    step: number
+): number[] {
+    const result = ownXs.slice();
     const groups = new Map<number, number[]>();
-    for (let i = 0; i < n; i++) {
-        if (!groups.has(ownXs[i])) {
-            groups.set(ownXs[i], []);
+    ownXs.forEach((x, i) => {
+        if (!groups.has(x)) {
+            groups.set(x, []);
         }
-        groups.get(ownXs[i])!.push(i);
-    }
-
-    for (const [ownX, indices] of groups) {
-        if (indices.length === 1) {
-            result[indices[0]] = ownX;
+        groups.get(x)!.push(i);
+    });
+    for (const [ownX, idxs] of groups) {
+        if (idxs.length === 1) {
+            result[idxs[0]] = ownX;
             continue;
         }
-        indices.sort((a, b) => otherXs[a] - otherXs[b]);
-        const half = ((indices.length - 1) * ATTACH_STEP) / 2;
-        indices.forEach((idx, pos) => {
-            result[idx] = ownX - half + pos * ATTACH_STEP;
+        idxs.sort((a, b) => otherXs[a] - otherXs[b]);
+        const half = ((idxs.length - 1) * step) / 2;
+        idxs.forEach((idx, pos) => {
+            result[idx] = ownX - half + pos * step;
         });
     }
-
     return result;
+}
+
+function computeAttachXs(ownXs: number[], otherXs: number[]): number[] {
+    return spreadAttachXs(ownXs, otherXs, ATTACH_STEP);
 }
 
 // Draws each connection as three segments (vertical → horizontal → vertical).
 // Colors are assigned via greedy graph coloring on the geometric intersection graph,
-// guaranteeing that no two visually crossing connections share a color.
+// ensuring no two visually crossing connections share a color.
 // Attachment points on each node are spread horizontally when multiple edges share
 // the same node, ordered to mirror the other endpoint to minimise extra crossings.
 export function drawConnections(
@@ -378,17 +382,16 @@ export function renderAncestorEdges(
                 for (let k = j; k <= i; k++) {
                     nearbyBoxes.push(...layerBoxes[k]);
                 }
-                const margin = 40;
-
                 for (const { childBox } of children) {
                     const rightEdge =
                         Math.max(
                             ...nearbyBoxes.map(box => box.x + box.width / 2)
-                        ) + margin;
+                        ) + BYPASS_MARGIN;
                     const leftEdge =
                         Math.min(
                             ...nearbyBoxes.map(box => box.x - box.width / 2)
-                        ) - margin;
+                        ) - BYPASS_MARGIN;
+                    // Route to whichever side the parent+child center of mass leans toward.
                     const sideX =
                         parentBox.x + childBox.x > rightEdge + leftEdge
                             ? rightEdge

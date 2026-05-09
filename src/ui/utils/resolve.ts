@@ -33,6 +33,7 @@ function longestPathLayers(
         const curr = queue.shift()!;
         const d = dist.get(curr)!;
         for (const next of edges.get(curr) ?? []) {
+            // Longest path: take max, not min — ensures diamond ancestors land above every path that reaches them.
             if (d + 1 > dist.get(next)!) {
                 dist.set(next, d + 1);
             }

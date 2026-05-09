@@ -7,7 +7,12 @@ import {
     collectInheritedNames,
 } from '../classBox';
 import { renderBaseStyles, renderViewportScript } from '../../utils/viewport';
-import { drawConnections, hollowArrow, type EdgeConnection } from '../edges';
+import {
+    drawConnections,
+    hollowArrow,
+    spreadAttachXs,
+    type EdgeConnection,
+} from '../edges';
 import { orderByParentBarycenter } from '../../utils/layout';
 
 const COMPONENT_GAP = 400;
@@ -15,35 +20,6 @@ const COMPONENT_GAP = 400;
 /* =========================================================
    EDGE RENDERING
 ========================================================= */
-
-// Spreads attachment X positions for connections sharing the same node,
-// ordered by the other endpoint's X to minimise crossing at the attachment.
-function spreadAttachXs(
-    ownXs: number[],
-    otherXs: number[],
-    step: number
-): number[] {
-    const result = ownXs.slice();
-    const groups = new Map<number, number[]>();
-    ownXs.forEach((x, i) => {
-        if (!groups.has(x)) {
-            groups.set(x, []);
-        }
-        groups.get(x)!.push(i);
-    });
-    for (const [ownX, idxs] of groups) {
-        if (idxs.length === 1) {
-            result[idxs[0]] = ownX;
-            continue;
-        }
-        idxs.sort((a, b) => otherXs[a] - otherXs[b]);
-        const half = ((idxs.length - 1) * step) / 2;
-        idxs.forEach((idx, pos) => {
-            result[idx] = ownX - half + pos * step;
-        });
-    }
-    return result;
-}
 
 function renderComponentEdges(
     layers: ClassNode[][],
