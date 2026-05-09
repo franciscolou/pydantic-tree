@@ -1,9 +1,30 @@
-# Change Log
+# Changelog
 
-All notable changes to the "pytree" extension will be documented in this file.
+All notable changes to the "PyTree" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## Unreleased
 
-## [Unreleased]
+Currently evaluating potential new features and gathering feedback from daily PyTree users.
 
-- Initial release
+## [0.0.3] - 2026-05-09
+
+### Added
+- Added `CHANGELOG.md`
+
+## [0.0.2] - 2026-05-08
+
+### Added
+- Added GIF tutorials for key features in `README.md`
+
+### Changed
+- Updated the extension icon
+- Removed zoom restrictions from Webviews
+
+## [0.0.1] - 2026-05-08
+
+### Added
+- Initial release of PyTree
+    - Added **Simple Tree** (renders ancestors only)
+    - Added **Complete Tree** (renders ancestors and descendants)
+    - Added **Project Tree** (renders all project classes)
+    - Added **Pick Classes** (allows selecting specific classes to render)
