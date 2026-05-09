@@ -12,3 +12,8 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+assets/gifs/**
+assets/images/file-icon.svg
+test_cases/**
+CLAUDE.md
+.prettierignore
