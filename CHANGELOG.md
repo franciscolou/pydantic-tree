@@ -6,6 +6,12 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 Currently evaluating potential new features and gathering feedback from daily PyTree users.
 
+## [0.0.5] - 2026-05-09
+
+### Changed
+
+- Reduced extension size in 99.6% by referencing images and GIFs via GitHub raw links
+
 ## [0.0.4] - 2026-05-09
 
 ### Changed
