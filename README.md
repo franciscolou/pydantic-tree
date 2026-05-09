@@ -1,6 +1,6 @@
 # PyTree
 
-**PyTree** is a Visual Studio Code extension that renders interactive class inheritance trees for Python projects. For every class in the hierarchy it shows typed attributes, method signatures with parameter types and return types, and highlights overridden and dynamically assigned members — giving you an instant, accurate picture of any object model without leaving your editor.
+**PyTree** is a Visual Studio Code extension that renders interactive class inheritance trees for Python projects. For every class in the hierarchy it shows typed attributes, method signatures with parameter types and gives reference to all definitions — giving you an instant, accurate picture of any object model without leaving your editor.
 
 ---
 
@@ -10,7 +10,7 @@
 
 Open a tree focused on the class under your cursor, showing all ancestor layers above it.
 
-**Trigger:** `Ctrl+Alt+Space` · Command Palette: `PyTree: Class Tree` · Hover link
+**Trigger:** `Ctrl + Alt + Space` · Command Palette: `PyTree: Class Tree` · Hover link
 
 <!-- VIDEO PLACEHOLDER: simple tree demo -->
 
@@ -20,7 +20,7 @@ Open a tree focused on the class under your cursor, showing all ancestor layers 
 
 Same as the Simple Tree, but also scans the entire workspace to find every subclass and renders descendant layers below the focus class.
 
-**Trigger:** `Ctrl+Alt+T` · Command Palette: `PyTree: Complete Class Tree` · Hover link
+**Trigger:** `Ctrl + Alt + T` · Command Palette: `PyTree: Complete Class Tree` · Hover link
 
 <!-- VIDEO PLACEHOLDER: complete tree demo -->
 
@@ -30,7 +30,7 @@ Same as the Simple Tree, but also scans the entire workspace to find every subcl
 
 Renders **all** Python classes in the workspace at once, grouped by their connected inheritance component and laid out in a grid. Useful for getting an overview of the full object model of a project.
 
-**Trigger:** Command Palette: `PyTree: Project Tree`
+**Trigger:** `Ctrl + Alt + P` · Command Palette: `PyTree: Project Tree`
 
 <!-- VIDEO PLACEHOLDER: project tree demo -->
 
