@@ -78,18 +78,6 @@ Pan position, zoom level, and the file-paths checkbox state are persisted per we
 
 ---
 
-## Color Key
-
-| Color  | Meaning                                                        |
-| ------ | -------------------------------------------------------------- |
-| Blue   | Declared attribute (`name: Type`)                              |
-| Purple | Overridden attribute or method (redefined from a parent class) |
-| Red    | Dynamic / undeclared attribute (see Limitations)               |
-| Yellow | Method name                                                    |
-| Teal   | Type annotation                                                |
-
----
-
 ## Commands & Shortcuts
 
 | Command                        | Title                       | Shortcut         |
