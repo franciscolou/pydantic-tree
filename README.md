@@ -70,7 +70,7 @@ Every tree view is fully interactive:
 | -------------------- | ------------------------------------------------------------------------------------ |
 | **Pan**              | Click and drag                                                                       |
 | **Zoom**             | Scroll wheel (30 % – 300 %)                                                          |
-| **Find**             | `Ctrl+F` / `Cmd+F` — searches class names, highlights all matches, shows match count |
+| **Find**             | `Ctrl+F` / `Cmd+F` — searches class names, methods, atributes, any text |
 | **Navigate matches** | `Enter` / `Shift+Enter`, or the Prev / Next buttons                                  |
 | **Jump to source**   | Click any class name, attribute, or method — opens the file at the definition line   |
 
