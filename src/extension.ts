@@ -7,8 +7,10 @@ import {
     showPickClassesTree,
 } from './handlers';
 import { HoverProvider } from './providers/hover';
+import { initCache } from './utils/scan';
 
 export function activate(context: vscode.ExtensionContext) {
+    initCache(context);
     context.subscriptions.push(
         registerHoverProvider(),
         registerShowClassCommand(context),
