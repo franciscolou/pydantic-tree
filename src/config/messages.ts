@@ -26,6 +26,10 @@ export const Messages = {
         },
     },
 
+    ui: {
+        abstractIndicator: '(abc)',
+    },
+
     commands: {
         pickClasses: {
             labels: {

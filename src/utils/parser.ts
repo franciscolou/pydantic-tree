@@ -11,14 +11,15 @@ import type {
    REGEX (used only on individual declaration lines)
    ========================================================= */
 
-const CLASS_BASES_REGEX = /class\s+\w+\s*\(([^)]+)\)/;
+const ABSTRACT_CLASS_REGEX = /\bmetaclass\s*=\s*(?:abc\.)?ABCMeta\b/;
+const ABSTRACT_BASE_REGEX = /\b(?:abc\.)?ABC\b/;
+const ABSTRACT_METHOD_REGEX = /^\s*@(?:abc\.)?abstractmethod\b/;
 
+const CLASS_BASES_REGEX = /class\s+\w+\s*\(([^)]+)\)/;
 const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
-
 const ATTR_DECL_REGEX =
     /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=\n]+?)(?:\s*=\s*(.+))?$/;
-
 const BARE_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_.]*/;
 
 /* =========================================================
@@ -55,12 +56,13 @@ function extractMethod(
     document: vscode.TextDocument
 ): MethodDef {
     let declText = '';
-    for (
-        let l = sym.range.start.line;
-        l <= Math.min(sym.range.start.line + 3, document.lineCount - 1);
-        l++
-    ) {
+    let isAbstract = false;
+    const limit = Math.min(sym.range.start.line + 10, document.lineCount - 1);
+    for (let l = sym.range.start.line; l <= limit; l++) {
         const t = document.lineAt(l).text;
+        if (ABSTRACT_METHOD_REGEX.test(t)) {
+            isAbstract = true;
+        }
         if (METHOD_DECL_REGEX.test(t)) {
             declText = t;
             break;
@@ -73,6 +75,7 @@ function extractMethod(
         params: match ? parseParams(match[2]) : [],
         returnType: match?.[3]?.trim() || undefined,
         definedAtLine: sym.range.start.line,
+        isAbstract: isAbstract || undefined,
     };
 }
 
@@ -123,11 +126,42 @@ function extractAttribute(
     };
 }
 
+function collectClassDeclLines(
+    sym: vscode.DocumentSymbol,
+    document: vscode.TextDocument
+): string[] {
+    const lines: string[] = [];
+    let depth = 0;
+    let foundOpen = false;
+    const limit = Math.min(sym.range.start.line + 30, document.lineCount - 1);
+    for (let l = sym.range.start.line; l <= limit; l++) {
+        const text = document.lineAt(l).text;
+        lines.push(text);
+        for (const ch of text) {
+            if (ch === '(') {
+                depth++;
+                foundOpen = true;
+            } else if (ch === ')') {
+                depth--;
+            }
+        }
+        if (!foundOpen || (foundOpen && depth === 0)) {
+            break;
+        }
+    }
+    return lines;
+}
+
 async function extractClassFromSymbol(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
 ): Promise<ClassNode> {
-    const declLineText = document.lineAt(sym.range.start.line).text;
+    const declLines = collectClassDeclLines(sym, document);
+    const declLineText = declLines[0];
+    const isAbstract =
+        declLines.some(
+            l => ABSTRACT_CLASS_REGEX.test(l) || ABSTRACT_BASE_REGEX.test(l)
+        ) || undefined;
     const bases = await resolveBases(declLineText, document, sym);
 
     const methods: MethodDef[] = [];
@@ -164,6 +198,7 @@ async function extractClassFromSymbol(
         methods,
         definedAtLine: sym.range.start.line,
         fileUri: document.uri.toString(),
+        isAbstract,
     };
 }
 

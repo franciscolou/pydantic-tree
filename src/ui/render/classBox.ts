@@ -1,5 +1,5 @@
 import type { ClassNode, RenderedBox } from '../../types';
-import { Theme, UI } from '../../config';
+import { Theme, UI, Messages } from '../../config';
 import {
     ClassBox,
     Line,
@@ -229,7 +229,11 @@ export function computeMethodLayouts(
 ): MethodLayout[] {
     const indentStr = '    ';
     return node.methods.map(method => {
+        const prefix = method.isAbstract
+            ? `${Messages.ui.abstractIndicator} `
+            : '';
         const singleLine =
+            prefix +
             `${method.name}(${method.params.map(param => `${param.name}${param.type ? `: ${param.type}` : ''}`).join(', ')})` +
             `${method.returnType ? ` -> ${method.returnType}` : ''}`;
         if (singleLine.length <= wrapAt) {
@@ -238,7 +242,7 @@ export function computeMethodLayouts(
         return {
             wrapped: true,
             measureLines: [
-                `${method.name}(`,
+                `${prefix}${method.name}(`,
                 ...method.params.map(
                     param =>
                         `${indentStr}${param.name}${param.type ? `: ${param.type}` : ''},`
@@ -432,6 +436,15 @@ function renderMethodRows(
                 : Theme.colors.method;
             const layout = layouts[i];
 
+            const abstractPrefixSvg = method.isAbstract
+                ? TSpan({
+                      fill: '#ffffff',
+                      fontStyle: 'italic',
+                      fontWeight: 'bold',
+                      children: `${Messages.ui.abstractIndicator} `,
+                  })
+                : '';
+
             if (!layout.wrapped) {
                 const paramsSvg = method.params
                     .map(
@@ -459,6 +472,7 @@ function renderMethodRows(
                     y,
                     fontSize: Theme.font.size.normal,
                     children:
+                        abstractPrefixSvg +
                         TSpan({ fill: methodColor, children: method.name }) +
                         TSpan({ fill: Theme.colors.text, children: '(' }) +
                         paramsSvg +
@@ -481,6 +495,7 @@ function renderMethodRows(
                     y,
                     fontSize: Theme.font.size.normal,
                     children:
+                        abstractPrefixSvg +
                         TSpan({ fill: methodColor, children: method.name }) +
                         TSpan({ fill: Theme.colors.text, children: '(' }),
                 })
@@ -632,7 +647,9 @@ export function renderClassBox(
         y: 0,
         width,
         height: headerHeight,
-        fill: Theme.colors.headerBackground,
+        fill: node.isAbstract
+            ? Theme.colors.abstractHeaderBackground
+            : Theme.colors.headerBackground,
         stroke: 'none',
     });
 

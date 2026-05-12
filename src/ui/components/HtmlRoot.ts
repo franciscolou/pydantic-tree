@@ -11,8 +11,9 @@ export function HtmlRoot(body: string): string {
       --pt-text:     var(--vscode-editor-foreground,       #d4d4d4);
 
       /* Header */
-      --pt-header-bg:   #4ec9b0;
-      --pt-header-text: #000000;
+      --pt-header-bg:          #4ec9b0;
+      --pt-abstract-header-bg: #f2f7d7;
+      --pt-header-text:        #000000;
 
       /* File path section */
       --pt-filepath-bg:   #1a1a1a;

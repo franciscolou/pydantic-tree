@@ -8,6 +8,7 @@ export interface ClassNode {
     methods: ParserTypes.MethodDef[];
     definedAtLine: number;
     fileUri: string;
+    isAbstract?: boolean;
 }
 
 export type ClassRef = { fileUri: string; line: number };

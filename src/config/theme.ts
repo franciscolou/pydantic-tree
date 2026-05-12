@@ -5,6 +5,7 @@ export const Theme = {
         border: 'var(--pt-border)',
 
         headerBackground: 'var(--pt-header-bg)',
+        abstractHeaderBackground: 'var(--pt-abstract-header-bg)',
         headerText: 'var(--pt-header-text)',
 
         filePathBackground: 'var(--pt-filepath-bg)',

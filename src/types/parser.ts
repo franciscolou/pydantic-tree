@@ -16,6 +16,7 @@ export interface MethodDef {
     params: MethodParam[];
     returnType?: string;
     definedAtLine: number;
+    isAbstract?: boolean;
 }
 
 export interface BaseRef {
