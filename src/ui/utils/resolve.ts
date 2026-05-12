@@ -129,6 +129,50 @@ export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
     return layers;
 }
 
+// Runs longest-path layering on `related` nodes (relative to `focusId` at depth 0).
+// `edgesOf(id)` must return the subgraph neighbours that depth should propagate to.
+// Returns layers[0] = nodes at depth 1, layers[1] = nodes at depth 2, etc.
+function layerByLongestPath(
+    focusId: string,
+    related: Set<string>,
+    edgesOf: (id: string) => string[]
+): string[][] {
+    if (related.size === 0) {
+        return [];
+    }
+
+    const subgraph = new Set([focusId, ...related]);
+
+    const edges = new Map<string, string[]>();
+    for (const id of subgraph) {
+        const targets = edgesOf(id);
+        if (targets.length) {
+            edges.set(id, targets);
+        }
+    }
+
+    const dist = longestPathLayers([...subgraph], edges);
+
+    const layerMap = new Map<number, string[]>();
+    for (const id of related) {
+        const d = dist.get(id)!;
+        if (!layerMap.has(d)) {
+            layerMap.set(d, []);
+        }
+        layerMap.get(d)!.push(id);
+    }
+
+    const maxDist = Math.max(...[...related].map(id => dist.get(id)!));
+    const layers: string[][] = [];
+    for (let d = 1; d <= maxDist; d++) {
+        const layer = layerMap.get(d);
+        if (layer?.length) {
+            layers.push(layer);
+        }
+    }
+    return layers;
+}
+
 export function collectAncestors(
     classId: string,
     classes: Map<string, ClassNode>
@@ -144,80 +188,51 @@ export function collectAncestors(
             }
         }
     }
-    if (allAncestors.size === 0) {
-        return [];
-    }
 
     const subgraph = new Set([classId, ...allAncestors]);
-
     // Edges go from derived class → base classes (focus-to-ancestor direction).
-    // Longest-path ensures diamond ancestors are placed above all paths that reach them.
-    const edges = new Map<string, string[]>();
-    for (const n of subgraph) {
-        const targets = (classes.get(n)?.bases ?? [])
+    return layerByLongestPath(classId, allAncestors, id =>
+        (classes.get(id)?.bases ?? [])
             .filter(b => b.id && subgraph.has(b.id))
-            .map(b => b.id!);
-        if (targets.length) {
-            edges.set(n, targets);
-        }
-    }
-
-    const dist = longestPathLayers([...subgraph], edges);
-
-    const layerMap = new Map<number, string[]>();
-    for (const ancestor of allAncestors) {
-        const d = dist.get(ancestor)!;
-        if (!layerMap.has(d)) {
-            layerMap.set(d, []);
-        }
-        layerMap.get(d)!.push(ancestor);
-    }
-
-    const maxDist = Math.max(...dist.values());
-    const layers: string[][] = [];
-    for (let d = 1; d <= maxDist; d++) {
-        const layer = layerMap.get(d);
-        if (layer?.length) {
-            layers.push(layer);
-        }
-    }
-    return layers;
+            .map(b => b.id!)
+    );
 }
 
 export function collectDescendants(
     classId: string,
     classes: Map<string, ClassNode>
 ): string[][] {
-    const layers: string[][] = [];
-    const visited = new Set<string>();
-
-    let currentLevelSet = new Set([classId]);
-
-    while (true) {
-        const nextLevel: string[] = [];
-
-        for (const [id, node] of classes.entries()) {
-            if (visited.has(id)) {
-                continue;
-            }
-
-            if (
-                node.bases?.some(
-                    b => b.id !== undefined && currentLevelSet.has(b.id)
-                )
-            ) {
-                visited.add(id);
-                nextLevel.push(id);
+    // Build parent → children adjacency list for the whole class map.
+    const children = new Map<string, string[]>();
+    for (const [id, node] of classes) {
+        for (const base of node.bases) {
+            if (base.id && classes.has(base.id)) {
+                if (!children.has(base.id)) {
+                    children.set(base.id, []);
+                }
+                children.get(base.id)!.push(id);
             }
         }
-
-        if (!nextLevel.length) {
-            break;
-        }
-
-        layers.push(nextLevel);
-        currentLevelSet = new Set(nextLevel);
     }
 
-    return layers;
+    // BFS to collect the full set of descendants.
+    const allDescendants = new Set<string>();
+    const queue: string[] = [classId];
+    const visited = new Set<string>([classId]);
+    while (queue.length > 0) {
+        const curr = queue.shift()!;
+        for (const child of children.get(curr) ?? []) {
+            if (!visited.has(child)) {
+                visited.add(child);
+                allDescendants.add(child);
+                queue.push(child);
+            }
+        }
+    }
+
+    const subgraph = new Set([classId, ...allDescendants]);
+    // Edges go from base class → derived classes (focus-to-descendant direction).
+    return layerByLongestPath(classId, allDescendants, id =>
+        (children.get(id) ?? []).filter(c => subgraph.has(c))
+    );
 }
