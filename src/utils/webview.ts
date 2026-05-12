@@ -8,11 +8,15 @@ type PanelEntry = {
 
 const panelRegistry = new Map<string, PanelEntry>();
 
-async function getFileVersions(fileUris: string[]): Promise<Map<string, number>> {
+async function getFileVersions(
+    fileUris: string[]
+): Promise<Map<string, number>> {
     const versions = new Map<string, number>();
     for (const uri of fileUris) {
         try {
-            const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
+            const doc = await vscode.workspace.openTextDocument(
+                vscode.Uri.parse(uri)
+            );
             versions.set(uri, doc.version);
         } catch {
             versions.set(uri, -1);
@@ -115,7 +119,11 @@ export async function openWebview(
             return;
         }
         const panel = setupPanel(context, viewType, title, html);
-        panelRegistry.set(viewType, { panel, fileVersions: currentVersions, extraKey });
+        panelRegistry.set(viewType, {
+            panel,
+            fileVersions: currentVersions,
+            extraKey,
+        });
         panel.onDidDispose(() => {
             if (panelRegistry.get(viewType)?.panel === panel) {
                 panelRegistry.delete(viewType);

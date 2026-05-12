@@ -28,7 +28,8 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
         return;
     }
     const isComplete =
-        treeTypeItem.label === Messages.commands.pickClasses.labels.completeTree.title;
+        treeTypeItem.label ===
+        Messages.commands.pickClasses.labels.completeTree.title;
 
     let allClasses = new Map<string, ClassNode>();
     await vscode.window.withProgress(

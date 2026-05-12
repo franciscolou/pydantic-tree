@@ -267,6 +267,203 @@ export function drawConnections(
 }
 
 /* =========================================================
+   COMPONENT EDGES (project tree)
+========================================================= */
+
+export function renderComponentEdges(
+    layers: ClassNode[][],
+    layerBoxes: BoxMeasures[][]
+): string {
+    const SIDE_STEP = 14;
+    const TOP_OFFSET = 20;
+    const BOT_OFFSET = 10;
+    const Y_STEP = 12;
+    const MARGIN = 40;
+
+    let edges = '';
+
+    type Conn = {
+        parentX: number;
+        parentBottom: number;
+        childX: number;
+        childTop: number;
+        adjGap: number;
+    };
+    const all: Conn[] = [];
+
+    for (let i = 0; i < layers.length - 1; i++) {
+        layers[i].forEach((parent, pi) => {
+            layers[i + 1].forEach((child, ci) => {
+                if ((child.bases ?? []).some(b => b.id === parent.id)) {
+                    all.push({
+                        parentX: layerBoxes[i][pi].x,
+                        parentBottom:
+                            layerBoxes[i][pi].y + layerBoxes[i][pi].height,
+                        childX: layerBoxes[i + 1][ci].x,
+                        childTop: layerBoxes[i + 1][ci].y,
+                        adjGap: i,
+                    });
+                }
+            });
+        });
+    }
+    for (let i = 0; i < layers.length; i++) {
+        for (let j = i + 2; j < layers.length; j++) {
+            layers[i].forEach((parent, pi) => {
+                layers[j].forEach((child, ci) => {
+                    if ((child.bases ?? []).some(b => b.id === parent.id)) {
+                        all.push({
+                            parentX: layerBoxes[i][pi].x,
+                            parentBottom:
+                                layerBoxes[i][pi].y + layerBoxes[i][pi].height,
+                            childX: layerBoxes[j][ci].x,
+                            childTop: layerBoxes[j][ci].y,
+                            adjGap: -1,
+                        });
+                    }
+                });
+            });
+        }
+    }
+    if (all.length === 0) {
+        return edges;
+    }
+
+    const gPX = spreadAttachXs(
+        all.map(c => c.parentX),
+        all.map(c => c.childX),
+        ATTACH_STEP
+    );
+    const gCX = spreadAttachXs(
+        all.map(c => c.childX),
+        all.map(c => c.parentX),
+        ATTACH_STEP
+    );
+
+    for (let i = 0; i < layers.length - 1; i++) {
+        const busY =
+            (Math.max(...layerBoxes[i].map(b => b.y + b.height)) +
+                Math.min(...layerBoxes[i + 1].map(b => b.y))) /
+            2;
+        const connections: EdgeConnection[] = [];
+        all.forEach((c, k) => {
+            if (c.adjGap !== i) {
+                return;
+            }
+            connections.push({
+                parentX: gPX[k],
+                parentBottom: c.parentBottom,
+                childX: gCX[k],
+                childTop: c.childTop,
+            });
+        });
+        edges += drawConnections(connections, busY, Theme.colors.edgePalette);
+    }
+
+    const naIdxs = all
+        .map((c, k) => ({ c, k }))
+        .filter(({ c }) => c.adjGap < 0);
+    if (naIdxs.length === 0) {
+        return edges;
+    }
+
+    const allBoxes = layerBoxes.flat();
+    const rightBase =
+        Math.max(...allBoxes.map(b => b.x + b.width / 2)) + MARGIN;
+    const leftBase = Math.min(...allBoxes.map(b => b.x - b.width / 2)) - MARGIN;
+    const componentCenter = rightBase + leftBase;
+    const goRight = naIdxs.map(
+        ({ c }) => c.childX + c.parentX > componentCenter
+    );
+
+    const assignYOffsets = (keys: number[]): number[] => {
+        const offsets = new Array<number>(keys.length).fill(0);
+        const groups = new Map<number, number[]>();
+        keys.forEach((key, i) => {
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key)!.push(i);
+        });
+        for (const idxs of groups.values()) {
+            idxs.forEach((idx, pos) => {
+                offsets[idx] = pos * Y_STEP;
+            });
+        }
+        return offsets;
+    };
+
+    const topOffsets = assignYOffsets(
+        naIdxs.map(({ c }) => Math.round(c.parentBottom))
+    );
+    const botOffsets = assignYOffsets(
+        naIdxs.map(({ c }) => Math.round(c.childTop))
+    );
+    const topYs = naIdxs.map(
+        ({ c }, n) => c.parentBottom + TOP_OFFSET + topOffsets[n]
+    );
+    const botYs = naIdxs.map(
+        ({ c }, n) => c.childTop - BOT_OFFSET - botOffsets[n]
+    );
+
+    const rightRanges: [number, number][][] = [];
+    const leftRanges: [number, number][][] = [];
+    const laneIdx = new Array<number>(naIdxs.length).fill(0);
+    naIdxs.forEach((_, n) => {
+        const ranges = goRight[n] ? rightRanges : leftRanges;
+        let lane = 0;
+        for (;;) {
+            if (!ranges[lane]) {
+                ranges[lane] = [];
+            }
+            if (!ranges[lane].some(([t, b]) => topYs[n] < b && botYs[n] > t)) {
+                ranges[lane].push([topYs[n], botYs[n]]);
+                laneIdx[n] = lane;
+                break;
+            }
+            lane++;
+        }
+    });
+
+    const sideXs = naIdxs.map(
+        (_, n) =>
+            (goRight[n] ? rightBase : leftBase) +
+            (goRight[n] ? 1 : -1) * laneIdx[n] * SIDE_STEP
+    );
+
+    const palette = Theme.colors.edgePalette;
+    naIdxs.forEach(({ c, k }, n) => {
+        const pX = gPX[k];
+        const cX = gCX[k];
+        const topY = topYs[n];
+        const botY = botYs[n];
+        const sX = sideXs[n];
+        const color = palette[laneIdx[n] % palette.length];
+
+        edges += hollowArrow(pX, c.parentBottom, color);
+        edges += Line({
+            x1: pX,
+            y1: c.parentBottom + ARROW_H,
+            x2: pX,
+            y2: topY,
+            stroke: color,
+        });
+        edges += Line({ x1: pX, y1: topY, x2: sX, y2: topY, stroke: color });
+        edges += Line({ x1: sX, y1: topY, x2: sX, y2: botY, stroke: color });
+        edges += Line({ x1: sX, y1: botY, x2: cX, y2: botY, stroke: color });
+        edges += Line({
+            x1: cX,
+            y1: botY,
+            x2: cX,
+            y2: c.childTop,
+            stroke: color,
+        });
+    });
+
+    return edges;
+}
+
+/* =========================================================
    ANCESTOR EDGES
 ========================================================= */
 
