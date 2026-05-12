@@ -79,10 +79,17 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
         return { focus, ancestorLayers, descendantLayers };
     });
 
-    openWebview(
+    const fileUris = [...new Set([...allClasses.values()].map(n => n.fileUri))];
+    const extraKey = [
+        isComplete ? 'complete' : 'simple',
+        ...selected.map(s => s.nodeId).sort(),
+    ].join('\0');
+    await openWebview(
         context,
         'pytreePickedClasses',
         Messages.webView.titles.pickedClassesTree,
-        renderMultiTree(trees)
+        renderMultiTree(trees),
+        fileUris,
+        extraKey
     );
 }

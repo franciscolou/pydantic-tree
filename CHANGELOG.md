@@ -4,7 +4,9 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Unreleased
 
-Currently evaluating potential new features and gathering feedback from daily PyTree users.
+### Changed
+
+- Webview generation calls now lookup for already opened webviews with the same envolved files versions before opening a new webview
 
 ## [0.0.5] - 2026-05-09
 

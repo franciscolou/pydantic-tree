@@ -48,10 +48,12 @@ export async function showCompleteClassTree(
         classes
     );
 
-    openWebview(
+    const fileUris = [...new Set([...classes.values()].map(n => n.fileUri))];
+    await openWebview(
         context,
         'pytreeClassTree',
         Messages.webView.titles.completeClassTree(focusNode.name),
-        renderClassTree(focusNode, ancestors, descendants)
+        renderClassTree(focusNode, ancestors, descendants),
+        fileUris
     );
 }

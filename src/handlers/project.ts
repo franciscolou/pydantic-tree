@@ -31,10 +31,12 @@ export async function showProjectTree(context: vscode.ExtensionContext) {
     const components = buildConnectedComponents(allClasses);
     const componentLayers = components.map(comp => buildComponentLayers(comp));
 
-    openWebview(
+    const fileUris = [...new Set([...allClasses.values()].map(n => n.fileUri))];
+    await openWebview(
         context,
         'pytreeProjectTree',
         Messages.webView.titles.projectTree,
-        renderProjectTree(componentLayers, allClasses)
+        renderProjectTree(componentLayers, allClasses),
+        fileUris
     );
 }
