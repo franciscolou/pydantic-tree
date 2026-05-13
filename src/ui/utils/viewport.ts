@@ -53,7 +53,7 @@ export function renderViewportScript(
     transform-origin: top center;
     transform: scale(1.5);
   }
-  #edge-tooltip {
+  #edge-tooltip, #nav-tooltip {
     position: fixed;
     display: none;
     background: var(--pt-panel-bg, #1e1e1e);
@@ -72,6 +72,7 @@ export function renderViewportScript(
 ${WebViewOptions()}
 ${FindBar()}
 <div id="edge-tooltip"></div>
+<div id="nav-tooltip">Go to definition</div>
 <script>
   const svg = document.getElementById("svgRoot");
   const viewport = document.getElementById("viewport");
@@ -123,9 +124,16 @@ ${FindBar()}
   // change the inheritance in the source code.
   let edgeDrag = null;
 
-  // === EDGE TOOLTIP ===
+  // === TOOLTIPS (edge + navigation) ===
   const edgeTooltip = document.getElementById('edge-tooltip');
+  const navTooltip = document.getElementById('nav-tooltip');
   let tooltipEdgeEl = null;
+
+  function hideAllTooltips() {
+    edgeTooltip.style.display = 'none';
+    navTooltip.style.display = 'none';
+    tooltipEdgeEl = null;
+  }
 
   svg.addEventListener('mousemove', e => {
     const edgeEl = e.target.closest && e.target.closest('[data-pt-edge]');
@@ -139,16 +147,23 @@ ${FindBar()}
       edgeTooltip.style.display = 'block';
       edgeTooltip.style.left = (e.clientX + 14) + 'px';
       edgeTooltip.style.top = (e.clientY - 32) + 'px';
+      navTooltip.style.display = 'none';
+      return;
+    }
+    edgeTooltip.style.display = 'none';
+    tooltipEdgeEl = null;
+
+    const navEl = e.target.closest && e.target.closest('[data-line]');
+    if (navEl) {
+      navTooltip.style.display = 'block';
+      navTooltip.style.left = (e.clientX + 14) + 'px';
+      navTooltip.style.top = (e.clientY - 32) + 'px';
     } else {
-      edgeTooltip.style.display = 'none';
-      tooltipEdgeEl = null;
+      navTooltip.style.display = 'none';
     }
   });
 
-  svg.addEventListener('mouseleave', () => {
-    edgeTooltip.style.display = 'none';
-    tooltipEdgeEl = null;
-  });
+  svg.addEventListener('mouseleave', hideAllTooltips);
 
   function clientToSvg(clientX, clientY) {
     const r = svg.getBoundingClientRect();
@@ -198,8 +213,7 @@ ${FindBar()}
     viewport.appendChild(ghost);
 
     edgeDrag = { edgeEl, childId, parentId, origin, ghost, hoverBoxEl: null };
-    edgeTooltip.style.display = 'none';
-    tooltipEdgeEl = null;
+    hideAllTooltips();
     svg.setPointerCapture(e.pointerId);
     svg.style.cursor = 'grabbing';
   }
