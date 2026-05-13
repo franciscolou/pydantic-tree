@@ -29,7 +29,7 @@ export function HtmlRoot(body: string): string {
       --pt-attribute: #9cdcfe;
       --pt-method:    #dccd79;
       --pt-override:  #c586c0;
-      --pt-bool: var(--vscode-symbolIcon-booleanForeground)
+      --pt-bool:      #569cd6;
 
       /* Edge colors */
       --pt-edge:   var(--vscode-editorWidget-border, #6a6a6a);
@@ -53,6 +53,8 @@ export function HtmlRoot(body: string): string {
       --pt-attribute:#0070c1;
       --pt-method:   #795e26;
       --pt-override: #af00db;
+      --pt-bool:     var(--vscode-symbolIcon-booleanForeground, #0000ff);
+      --pt-number:   #098658;
 
       --pt-edge-0: #2b6797;
       --pt-edge-1: #2e6b30;
