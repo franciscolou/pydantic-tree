@@ -4,6 +4,10 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Unreleased
 
+- Currently tudying possible new features and preventive fixes for potential bugs.
+
+## [0.0.6] - 2026-05-13
+
 ### Added
 
 - Inheritance can now be changed directly from a tree view by dragging an inheritance arrow onto a different class — the change is written back to the source file, and a confirmation dialog is shown before any modification (with conflicts surfaced upfront when present)
