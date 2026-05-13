@@ -19,6 +19,9 @@ export function HtmlRoot(body: string): string {
       --pt-filepath-bg:   #1a1a1a;
       --pt-filepath-text: #717171;
 
+      /* Section labels */
+      --pt-section-label: #606060;
+
       /* Semantic syntax colors — dark theme defaults */
       --pt-type:      #4ec9b0;
       --pt-string:    #ce9178;
@@ -63,6 +66,8 @@ export function HtmlRoot(body: string): string {
 
       --pt-filepath-bg:   #e0e0e0;
       --pt-filepath-text: #5a5a5a;
+
+      --pt-section-label: #909090;
   }
 </style>
 </head>

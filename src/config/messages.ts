@@ -28,6 +28,12 @@ export const Messages = {
 
     ui: {
         abstractIndicator: '(abc)',
+        sections: {
+            attributes: 'Attributes',
+            classMethods: 'Class Methods',
+            staticMethods: 'Static Methods',
+            methods: 'Methods',
+        },
     },
 
     commands: {

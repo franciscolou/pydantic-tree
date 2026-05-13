@@ -7,6 +7,8 @@ All notable changes to the "PyTree" extension will be documented in this file.
 ### Added
 
 - Trees can now identify abstract classes and methods
+- Class boxes now group members into labelled sections: **Attributes**, **Class Methods**, **Static Methods**, and **Methods**
+- Added **Colors and Symbols** section to `README.md`
 
 ### Changed
 

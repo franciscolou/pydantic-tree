@@ -1,4 +1,4 @@
-import type { ClassNode, RenderedBox } from '../../types';
+import type { ClassNode, RenderedBox, MethodDef } from '../../types';
 import { Theme, UI, Messages } from '../../config';
 import {
     ClassBox,
@@ -224,11 +224,11 @@ export interface MethodLayout {
 }
 
 export function computeMethodLayouts(
-    node: ClassNode,
+    methods: MethodDef[],
     wrapAt: number
 ): MethodLayout[] {
     const indentStr = '    ';
-    return node.methods.map(method => {
+    return methods.map(method => {
         const prefix = method.isAbstract
             ? `${Messages.ui.abstractIndicator} `
             : '';
@@ -312,7 +312,7 @@ export function computeBoxWidth(
 
 export function measureClassBox(
     node: ClassNode,
-    inherited: { attrs: Set<string>; methods: Set<string> }
+    _inherited: { attrs: Set<string>; methods: Set<string> }
 ): { width: number; height: number } {
     const {
         headerHeight,
@@ -325,28 +325,85 @@ export function measureClassBox(
         charWidth,
     } = UI.box;
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
-    const layouts = computeMethodLayouts(node, wrapAt);
-    const width = computeBoxWidth(node, layouts);
+
+    const classMethods = node.methods.filter(m => m.isClassMethod);
+    const staticMethods = node.methods.filter(m => m.isStaticMethod);
+    const regularMethods = node.methods.filter(
+        m => !m.isClassMethod && !m.isStaticMethod
+    );
+
+    const classLayouts = computeMethodLayouts(classMethods, wrapAt);
+    const staticLayouts = computeMethodLayouts(staticMethods, wrapAt);
+    const regularLayouts = computeMethodLayouts(regularMethods, wrapAt);
+    const allLayouts = [...classLayouts, ...staticLayouts, ...regularLayouts];
+
+    const width = computeBoxWidth(node, allLayouts);
+
+    const countLines = (layouts: MethodLayout[]) =>
+        layouts.reduce((sum, l) => sum + l.measureLines.length, 0);
+
     const attrLineCount = node.attributes.reduce(
         (sum, attr) =>
             sum +
             (attr.defaultValue ? attr.defaultValue.split('\n').length : 1),
         0
     );
-    let y = headerHeight + sectionTopPadding + attrLineCount * lineHeight;
-    if (node.attributes.length && node.methods.length) {
-        y += sectionGap / 2 + sectionTopPadding;
+
+    let y = headerHeight + sectionTopPadding;
+
+    if (node.attributes.length) {
+        y += lineHeight; // "Attributes" label
+        y += attrLineCount * lineHeight;
     }
-    const methodLineCount = layouts.reduce(
-        (sum, layout) => sum + layout.measureLines.length,
-        0
-    );
-    return { width, height: y + methodLineCount * lineHeight + padding };
+
+    const hasAnyMethod =
+        classMethods.length || staticMethods.length || regularMethods.length;
+    if (hasAnyMethod) {
+        if (node.attributes.length) {
+            y += sectionGap / 2 + sectionTopPadding;
+        }
+        if (classMethods.length) {
+            y += lineHeight; // "Class Methods" label
+            y += countLines(classLayouts) * lineHeight;
+        }
+        if (staticMethods.length) {
+            if (classMethods.length) { y += sectionGap; }
+            y += lineHeight; // "Static Methods" label
+            y += countLines(staticLayouts) * lineHeight;
+        }
+        if (regularMethods.length) {
+            if (classMethods.length || staticMethods.length) { y += sectionGap; }
+            y += lineHeight; // "Methods" label
+            y += countLines(regularLayouts) * lineHeight;
+        }
+    }
+
+    return { width, height: y + padding };
+}
+
+function renderSectionLabel(
+    label: string,
+    y: number
+): { svg: string; endY: number } {
+    return {
+        svg: Text({
+            x: 16,
+            y,
+            fontSize: Theme.font.size.normal,
+            children: TSpan({
+                fill: Theme.colors.sectionLabel,
+                fontStyle: 'italic',
+                children: label,
+            }),
+        }),
+        endY: y + UI.box.lineHeight,
+    };
 }
 
 function renderAttributes(
     node: ClassNode,
     startY: number,
+    baseX: number,
     inherited: { attrs: Set<string> }
 ): { svg: string; endY: number } {
     const { lineHeight, charWidth } = UI.box;
@@ -358,7 +415,7 @@ function renderAttributes(
                 : [];
 
             const firstText = Text({
-                x: 16,
+                x: baseX,
                 y,
                 fontSize: Theme.font.size.normal,
                 children:
@@ -381,7 +438,7 @@ function renderAttributes(
                 .map(line => {
                     const leadingSpaces = line.match(/^ */)?.[0].length ?? 0;
                     const text = Text({
-                        x: 16 + leadingSpaces * charWidth,
+                        x: baseX + leadingSpaces * charWidth,
                         y,
                         fontSize: Theme.font.size.normal,
                         children: renderPythonValue(line.trimStart()),
@@ -421,15 +478,17 @@ function renderDivider(
 
 function renderMethodRows(
     node: ClassNode,
+    methods: MethodDef[],
     layouts: MethodLayout[],
     startY: number,
+    baseX: number,
     inherited: { methods: Set<string> }
 ): { svg: string; endY: number } {
     const { lineHeight } = UI.box;
     const indentPx = 4 * UI.box.charWidth;
     let y = startY;
 
-    const svg = node.methods
+    const svg = methods
         .map((method, i) => {
             const methodColor = inherited.methods.has(method.name)
                 ? Theme.colors.override
@@ -468,7 +527,7 @@ function renderMethodRows(
                     : '';
 
                 const text = Text({
-                    x: 16,
+                    x: baseX,
                     y,
                     fontSize: Theme.font.size.normal,
                     children:
@@ -491,7 +550,7 @@ function renderMethodRows(
             const lines: string[] = [];
             lines.push(
                 Text({
-                    x: 16,
+                    x: baseX,
                     y,
                     fontSize: Theme.font.size.normal,
                     children:
@@ -505,7 +564,7 @@ function renderMethodRows(
             for (const param of method.params) {
                 lines.push(
                     Text({
-                        x: 16 + indentPx,
+                        x: baseX + indentPx,
                         y,
                         fontSize: Theme.font.size.normal,
                         children:
@@ -527,7 +586,7 @@ function renderMethodRows(
 
             lines.push(
                 Text({
-                    x: 16,
+                    x: baseX,
                     y,
                     fontSize: Theme.font.size.normal,
                     children:
@@ -563,6 +622,7 @@ export function renderClassBox(
     const {
         headerHeight,
         padding,
+        sectionGap,
         sectionTopPadding,
         maxWidth,
         sidePadding,
@@ -570,36 +630,101 @@ export function renderClassBox(
         borderRadius,
     } = UI.box;
     const wrapAt = Math.floor((maxWidth - sidePadding) / charWidth);
+    const contentIndent = 24;
 
-    const layouts = computeMethodLayouts(node, wrapAt);
-    const width = computeBoxWidth(node, layouts);
+    const classMethods = node.methods.filter(m => m.isClassMethod);
+    const staticMethods = node.methods.filter(m => m.isStaticMethod);
+    const regularMethods = node.methods.filter(
+        m => !m.isClassMethod && !m.isStaticMethod
+    );
+
+    const classLayouts = computeMethodLayouts(classMethods, wrapAt);
+    const staticLayouts = computeMethodLayouts(staticMethods, wrapAt);
+    const regularLayouts = computeMethodLayouts(regularMethods, wrapAt);
+    const allLayouts = [...classLayouts, ...staticLayouts, ...regularLayouts];
+
+    const width = computeBoxWidth(node, allLayouts);
 
     const fpLines = computeFilePathLines(node.fileUri, width);
     const fpHeight = filePathSectionHeight(fpLines);
     const { filePathFontSize, filePathLineHeight, filePathPadding } = UI.box;
 
-    const contentStartY = headerHeight + sectionTopPadding;
-    const { svg: attrSvg, endY: afterAttrs } = renderAttributes(
-        node,
-        contentStartY,
-        inherited
-    );
+    const parts: string[] = [];
+    let curY = headerHeight + sectionTopPadding;
 
-    let methodStartY = afterAttrs;
-    let dividerSvg = '';
-    if (node.attributes.length && node.methods.length) {
-        const divider = renderDivider(afterAttrs, width);
-        dividerSvg = divider.svg;
-        methodStartY = divider.endY;
+    if (node.attributes.length) {
+        const lbl = renderSectionLabel(Messages.ui.sections.attributes, curY);
+        parts.push(lbl.svg);
+        curY = lbl.endY;
+        const attrs = renderAttributes(node, curY, contentIndent, inherited);
+        parts.push(attrs.svg);
+        curY = attrs.endY;
     }
 
-    const { svg: methodSvg, endY: afterMethods } = renderMethodRows(
-        node,
-        layouts,
-        methodStartY,
-        inherited
-    );
-    const height = afterMethods + padding;
+    const hasAnyMethod =
+        classMethods.length || staticMethods.length || regularMethods.length;
+    if (hasAnyMethod) {
+        if (node.attributes.length) {
+            const divider = renderDivider(curY, width);
+            parts.push(divider.svg);
+            curY = divider.endY;
+        }
+        if (classMethods.length) {
+            const lbl = renderSectionLabel(
+                Messages.ui.sections.classMethods,
+                curY
+            );
+            parts.push(lbl.svg);
+            curY = lbl.endY;
+            const rows = renderMethodRows(
+                node,
+                classMethods,
+                classLayouts,
+                curY,
+                contentIndent,
+                inherited
+            );
+            parts.push(rows.svg);
+            curY = rows.endY;
+        }
+        if (staticMethods.length) {
+            if (classMethods.length) { curY += sectionGap; }
+            const lbl = renderSectionLabel(
+                Messages.ui.sections.staticMethods,
+                curY
+            );
+            parts.push(lbl.svg);
+            curY = lbl.endY;
+            const rows = renderMethodRows(
+                node,
+                staticMethods,
+                staticLayouts,
+                curY,
+                contentIndent,
+                inherited
+            );
+            parts.push(rows.svg);
+            curY = rows.endY;
+        }
+        if (regularMethods.length) {
+            if (classMethods.length || staticMethods.length) { curY += sectionGap; }
+            const lbl = renderSectionLabel(Messages.ui.sections.methods, curY);
+            parts.push(lbl.svg);
+            curY = lbl.endY;
+            const rows = renderMethodRows(
+                node,
+                regularMethods,
+                regularLayouts,
+                curY,
+                contentIndent,
+                inherited
+            );
+            parts.push(rows.svg);
+            curY = rows.endY;
+        }
+    }
+
+    const height = curY + padding;
 
     const panel = ClassBox({
         x: 0,
@@ -678,7 +803,7 @@ export function renderClassBox(
     });
     const clippedContent = Group({
         clipPath: `url(#${clipId})`,
-        children: attrSvg + dividerSvg + methodSvg,
+        children: parts.join(''),
     });
 
     return {

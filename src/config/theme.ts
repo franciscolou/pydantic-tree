@@ -11,6 +11,8 @@ export const Theme = {
         filePathBackground: 'var(--pt-filepath-bg)',
         filePathText: 'var(--pt-filepath-text)',
 
+        sectionLabel: 'var(--pt-section-label)',
+
         text: 'var(--pt-text)',
         type: 'var(--pt-type)',
         string: 'var(--pt-string)',

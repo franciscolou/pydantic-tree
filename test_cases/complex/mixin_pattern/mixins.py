@@ -49,7 +49,8 @@ class ValidatableMixin:
 
     def _init_validation(self) -> None:
         self._errors = []
-
+    
+    @classmethod
     def validate(self) -> bool:
         self._errors = []
         self._run_validations()
@@ -57,7 +58,8 @@ class ValidatableMixin:
 
     def _run_validations(self) -> None:
         pass
-
+    
+    @staticmethod
     def errors(self) -> list[str]:
         return list(self._errors)
 

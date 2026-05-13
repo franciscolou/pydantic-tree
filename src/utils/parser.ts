@@ -14,6 +14,8 @@ import type {
 const ABSTRACT_CLASS_REGEX = /\bmetaclass\s*=\s*(?:abc\.)?ABCMeta\b/;
 const ABSTRACT_BASE_REGEX = /\b(?:abc\.)?ABC\b/;
 const ABSTRACT_METHOD_REGEX = /^\s*@(?:abc\.)?abstractmethod\b/;
+const CLASS_METHOD_REGEX = /^\s*@classmethod\b/;
+const STATIC_METHOD_REGEX = /^\s*@staticmethod\b/;
 
 const CLASS_BASES_REGEX = /class\s+\w+\s*\(([^)]+)\)/;
 const METHOD_DECL_REGEX =
@@ -57,12 +59,14 @@ function extractMethod(
 ): MethodDef {
     let declText = '';
     let isAbstract = false;
+    let isClassMethod = false;
+    let isStaticMethod = false;
     const limit = Math.min(sym.range.start.line + 10, document.lineCount - 1);
     for (let l = sym.range.start.line; l <= limit; l++) {
         const t = document.lineAt(l).text;
-        if (ABSTRACT_METHOD_REGEX.test(t)) {
-            isAbstract = true;
-        }
+        if (ABSTRACT_METHOD_REGEX.test(t)) { isAbstract = true; }
+        if (CLASS_METHOD_REGEX.test(t)) { isClassMethod = true; }
+        if (STATIC_METHOD_REGEX.test(t)) { isStaticMethod = true; }
         if (METHOD_DECL_REGEX.test(t)) {
             declText = t;
             break;
@@ -76,6 +80,8 @@ function extractMethod(
         returnType: match?.[3]?.trim() || undefined,
         definedAtLine: sym.range.start.line,
         isAbstract: isAbstract || undefined,
+        isClassMethod: isClassMethod || undefined,
+        isStaticMethod: isStaticMethod || undefined,
     };
 }
 

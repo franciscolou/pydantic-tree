@@ -17,6 +17,8 @@ export interface MethodDef {
     returnType?: string;
     definedAtLine: number;
     isAbstract?: boolean;
+    isClassMethod?: boolean;
+    isStaticMethod?: boolean;
 }
 
 export interface BaseRef {
