@@ -6,7 +6,8 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ### Added
 
-- Trees can now identify abstract classes and methods
+- Inheritance can now be changed directly from a tree view by dragging an inheritance arrow onto a different class — the change is written back to the source file, and a confirmation dialog is shown before any modification (with conflicts surfaced upfront when present)
+- Trees can now identify abstract classes and methods, class methods and static methods;
 - Class boxes now group members into labelled sections: **Attributes**, **Class Methods**, **Static Methods**, and **Methods**
 - Added **Colors and Symbols** section to `README.md`
 

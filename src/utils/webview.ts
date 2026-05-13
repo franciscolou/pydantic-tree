@@ -162,6 +162,19 @@ async function handleChangeInheritance(
         if (choice !== Messages.inheritance.applyAnyway) {
             return;
         }
+    } else {
+        const choice = await vscode.window.showInformationMessage(
+            Messages.inheritance.confirmTitle(
+                child.name,
+                oldParent.name,
+                newParent.name
+            ),
+            { modal: true },
+            Messages.inheritance.confirmApply
+        );
+        if (choice !== Messages.inheritance.confirmApply) {
+            return;
+        }
     }
 
     const ok = await rewriteInheritance(child, oldParent, newParent);
