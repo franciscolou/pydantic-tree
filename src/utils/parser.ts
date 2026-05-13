@@ -18,6 +18,7 @@ const CLASS_METHOD_REGEX = /^\s*@classmethod\b/;
 const STATIC_METHOD_REGEX = /^\s*@staticmethod\b/;
 
 const CLASS_BASES_REGEX = /class\s+\w+\s*\(([^)]+)\)/;
+const DEF_START_REGEX = /^\s*def\s+/;
 const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
 const ATTR_DECL_REGEX =
@@ -53,6 +54,28 @@ async function getDocumentSymbols(
    MEMBER EXTRACTION
    ========================================================= */
 
+function collectMethodDeclText(
+    startLine: number,
+    document: vscode.TextDocument
+): string {
+    const parts: string[] = [];
+    let depth = 0;
+    let foundOpen = false;
+    const limit = Math.min(startLine + 30, document.lineCount - 1);
+    for (let l = startLine; l <= limit; l++) {
+        const text = document.lineAt(l).text;
+        parts.push(text);
+        depth += bracketDepth(text);
+        if (!foundOpen && text.includes('(')) {
+            foundOpen = true;
+        }
+        if (foundOpen && depth === 0) {
+            break;
+        }
+    }
+    return parts.join(' ');
+}
+
 function extractMethod(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
@@ -67,8 +90,8 @@ function extractMethod(
         if (ABSTRACT_METHOD_REGEX.test(t)) { isAbstract = true; }
         if (CLASS_METHOD_REGEX.test(t)) { isClassMethod = true; }
         if (STATIC_METHOD_REGEX.test(t)) { isStaticMethod = true; }
-        if (METHOD_DECL_REGEX.test(t)) {
-            declText = t;
+        if (DEF_START_REGEX.test(t)) {
+            declText = collectMethodDeclText(l, document);
             break;
         }
     }
