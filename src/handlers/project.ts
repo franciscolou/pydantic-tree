@@ -1,17 +1,39 @@
 import * as vscode from 'vscode';
-import { ClassNode } from '../types';
 import { Messages } from '../config';
 import { scanWorkspaceClasses } from '../utils/scan';
 import {
     buildComponentLayers,
     buildConnectedComponents,
 } from '../ui/utils/resolve';
-import { openWebview } from '../utils/webview';
+import { openWebview, PanelState } from '../utils/webview';
 import { renderProjectTree } from '../ui/render/trees/project';
 
 export async function showProjectTree(context: vscode.ExtensionContext) {
-    let allClasses = new Map<string, ClassNode>();
+    const computeState = async (
+        progress?: vscode.Progress<{
+            message?: string;
+            increment?: number;
+        }>
+    ): Promise<PanelState | null> => {
+        const allClasses = await scanWorkspaceClasses(progress);
+        if (!allClasses.size) {
+            return null;
+        }
+        const components = buildConnectedComponents(allClasses);
+        const componentLayers = components.map(comp =>
+            buildComponentLayers(comp)
+        );
+        const fileUris = [
+            ...new Set([...allClasses.values()].map(n => n.fileUri)),
+        ];
+        return {
+            html: renderProjectTree(componentLayers, allClasses),
+            fileUris,
+            classes: allClasses,
+        };
+    };
 
+    let state: PanelState | null = null;
     await vscode.window.withProgress(
         {
             location: vscode.ProgressLocation.Notification,
@@ -19,24 +41,23 @@ export async function showProjectTree(context: vscode.ExtensionContext) {
             cancellable: false,
         },
         async progress => {
-            allClasses = await scanWorkspaceClasses(progress);
+            state = await computeState(progress);
         }
     );
 
-    if (!allClasses.size) {
+    if (!state) {
         vscode.window.showInformationMessage(Messages.noClassesFound);
         return;
     }
+    const finalState: PanelState = state;
 
-    const components = buildConnectedComponents(allClasses);
-    const componentLayers = components.map(comp => buildComponentLayers(comp));
-
-    const fileUris = [...new Set([...allClasses.values()].map(n => n.fileUri))];
     await openWebview(
         context,
         'pytreeProjectTree',
         Messages.webView.titles.projectTree,
-        renderProjectTree(componentLayers, allClasses),
-        fileUris
+        finalState.html,
+        finalState.fileUris,
+        '',
+        () => computeState()
     );
 }

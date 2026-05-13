@@ -36,6 +36,26 @@ export const Messages = {
         },
     },
 
+    inheritance: {
+        cycleError: (child: string, parent: string) =>
+            `Cannot change inheritance: ${parent} is already a descendant of ${child}, which would create a circular inheritance.`,
+        sameParent: 'The selected class is already the current parent.',
+        conflictTitle: (child: string, newParent: string) =>
+            `Changing ${child}'s parent to ${newParent} introduces conflicts:`,
+        conflictAttrs: (names: string[]) =>
+            `Attributes: ${names.join(', ')}`,
+        conflictMethods: (names: string[]) =>
+            `Methods: ${names.join(', ')}`,
+        conflictFooter:
+            'Apply anyway? You can resolve the conflicts manually in the source file afterwards.',
+        applyAnyway: 'Apply Anyway',
+        cancel: 'Cancel',
+        rewriteFailed:
+            'Could not rewrite the source: please check the class declaration is well-formed.',
+        appliedNotice: (child: string, parent: string) =>
+            `Changed ${child}'s base class to ${parent}.`,
+    },
+
     commands: {
         pickClasses: {
             labels: {

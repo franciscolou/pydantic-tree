@@ -4,6 +4,10 @@ import { extractClasses } from './parser';
 
 let scanCache: Map<string, ClassNode> | null = null;
 
+export function invalidateScanCache(): void {
+    scanCache = null;
+}
+
 export function initCache(context: vscode.ExtensionContext): void {
     const invalidate = () => {
         scanCache = null;

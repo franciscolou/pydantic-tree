@@ -94,8 +94,116 @@ ${FindBar()}
   svg.style.cursor = "grab";
   svg.style.userSelect = "none";
 
+  // === EDGE DRAG ===
+  // When the user starts a pointerdown on an inheritance arrow, we capture
+  // the drag and prevent the canvas pan from kicking in. While dragging,
+  // a "ghost" line follows the cursor from the original child class box.
+  // On pointerup, if released over a class box, we ask the extension to
+  // change the inheritance in the source code.
+  let edgeDrag = null;
+
+  function clientToSvg(clientX, clientY) {
+    const r = svg.getBoundingClientRect();
+    return {
+      x: (clientX - r.left - tx) / scale,
+      y: (clientY - r.top - ty) / scale,
+    };
+  }
+
+  function getBoxCenter(boxEl) {
+    const r = boxEl.getBoundingClientRect();
+    return clientToSvg(r.left + r.width / 2, r.top + r.height / 2);
+  }
+
+  function startEdgeDrag(edgeEl, e) {
+    const childId = edgeEl.dataset.ptEdgeChild;
+    const parentId = edgeEl.dataset.ptEdgeParent;
+    if (!childId || !parentId) return;
+
+    // Pick up the visible arrow's stroke color so the ghost line matches
+    // the edge being dragged. The hit area polygon has stroke="none", so
+    // we look for the first polygon with a real stroke.
+    let edgeColor = '#888';
+    const polygons = edgeEl.querySelectorAll('polygon');
+    for (const p of polygons) {
+      const s = p.getAttribute('stroke');
+      if (s && s !== 'none') { edgeColor = s; break; }
+    }
+
+    // Resolve the child box's center as the drag origin.
+    const childBox = viewport.querySelector(
+      '[data-pt-box-id="' + (window.CSS && CSS.escape ? CSS.escape(childId) : childId) + '"]'
+    );
+    const origin = childBox ? getBoxCenter(childBox) : clientToSvg(e.clientX, e.clientY);
+
+    // Build the ghost line element once.
+    const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    ghost.setAttribute('stroke', edgeColor);
+    ghost.setAttribute('stroke-opacity', '0.55');
+    ghost.setAttribute('stroke-width', '2');
+    ghost.setAttribute('stroke-dasharray', '6 4');
+    ghost.setAttribute('pointer-events', 'none');
+    ghost.setAttribute('x1', origin.x);
+    ghost.setAttribute('y1', origin.y);
+    ghost.setAttribute('x2', origin.x);
+    ghost.setAttribute('y2', origin.y);
+    viewport.appendChild(ghost);
+
+    edgeDrag = { edgeEl, childId, parentId, origin, ghost, hoverBoxEl: null };
+    svg.setPointerCapture(e.pointerId);
+    svg.style.cursor = 'grabbing';
+  }
+
+  function updateEdgeDrag(e) {
+    if (!edgeDrag) return;
+    const p = clientToSvg(e.clientX, e.clientY);
+    edgeDrag.ghost.setAttribute('x2', p.x);
+    edgeDrag.ghost.setAttribute('y2', p.y);
+
+    // Highlight the box currently under the cursor (if any).
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const boxEl = under ? under.closest('[data-pt-box-id]') : null;
+    if (boxEl !== edgeDrag.hoverBoxEl) {
+      if (edgeDrag.hoverBoxEl) edgeDrag.hoverBoxEl.style.filter = '';
+      if (boxEl) boxEl.style.filter = 'brightness(1.25)';
+      edgeDrag.hoverBoxEl = boxEl;
+    }
+  }
+
+  function endEdgeDrag(e) {
+    if (!edgeDrag) return false;
+    const { childId, parentId, ghost, hoverBoxEl } = edgeDrag;
+    if (hoverBoxEl) hoverBoxEl.style.filter = '';
+    ghost.remove();
+
+    // Determine the drop target box.
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const boxEl = under ? under.closest('[data-pt-box-id]') : null;
+    const newParentId = boxEl ? boxEl.dataset.ptBoxId : null;
+
+    edgeDrag = null;
+    svg.style.cursor = 'grab';
+    try { svg.releasePointerCapture(e.pointerId); } catch {}
+
+    if (newParentId && newParentId !== parentId) {
+      vscode.postMessage({
+        command: 'changeInheritance',
+        childId: childId,
+        oldParentId: parentId,
+        newParentId: newParentId,
+      });
+    }
+    return true;
+  }
+
   svg.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
+    const edgeEl = e.target.closest && e.target.closest('[data-pt-edge]');
+    if (edgeEl) {
+      e.stopPropagation();
+      startEdgeDrag(edgeEl, e);
+      return;
+    }
     isPanning = true;
     pointerDownTarget = e.target;
     pointerMoved = false;
@@ -106,6 +214,10 @@ ${FindBar()}
   });
 
   svg.addEventListener("pointermove", e => {
+    if (edgeDrag) {
+      updateEdgeDrag(e);
+      return;
+    }
     if (!isPanning) return;
     const dx = e.clientX - lastX;
     const dy = e.clientY - lastY;
@@ -118,6 +230,7 @@ ${FindBar()}
   });
 
   function endPan(e) {
+    if (endEdgeDrag(e)) return;
     if (!pointerMoved && pointerDownTarget) {
       const navTarget = pointerDownTarget.closest("[data-line]");
       if (navTarget) {

@@ -809,6 +809,7 @@ export function renderClassBox(
     return {
         svg: Group({
             dataPtBox: true,
+            dataPtBoxId: node.id,
             transform: `translate(${x - width / 2}, ${y})`,
             children:
                 clipDef +

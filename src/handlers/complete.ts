@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { openWebview } from '../utils/webview';
+import { openWebview, PanelState } from '../utils/webview';
 import { resolveClassNode, resolveLayeredNodes } from '../utils/resolve';
 import { collectAncestors, collectDescendants } from '../ui/utils/resolve';
 import { Messages } from '../config';
@@ -18,11 +18,50 @@ export async function showCompleteClassTree(
         return;
     }
 
-    const document = await vscode.workspace.openTextDocument(
-        vscode.Uri.parse(focusNode.fileUri)
-    );
-    let classes = await buildInheritanceMap(focusNode.id, document);
+    const focusRef: ClassRef = {
+        fileUri: focusNode.fileUri,
+        line: focusNode.definedAtLine,
+    };
 
+    const computeState = async (
+        progress?: vscode.Progress<{
+            message?: string;
+            increment?: number;
+        }>
+    ): Promise<PanelState | null> => {
+        const node = await resolveClassNode(focusRef);
+        if (!node) {
+            return null;
+        }
+        const document = await vscode.workspace.openTextDocument(
+            vscode.Uri.parse(node.fileUri)
+        );
+        const classes = await buildInheritanceMap(node.id, document);
+        const allClasses = await scanWorkspaceClasses(progress);
+        for (const [id, n] of allClasses) {
+            if (!classes.has(id)) {
+                classes.set(id, n);
+            }
+        }
+        const ancestors = resolveLayeredNodes(
+            collectAncestors(node.id, classes),
+            classes
+        );
+        const descendants = resolveLayeredNodes(
+            collectDescendants(node.id, classes),
+            classes
+        );
+        const fileUris = [
+            ...new Set([...classes.values()].map(n => n.fileUri)),
+        ];
+        return {
+            html: renderClassTree(node, ancestors, descendants),
+            fileUris,
+            classes,
+        };
+    };
+
+    let state: PanelState | null = null;
     await vscode.window.withProgress(
         {
             location: vscode.ProgressLocation.Notification,
@@ -30,30 +69,22 @@ export async function showCompleteClassTree(
             cancellable: false,
         },
         async progress => {
-            const allClasses = await scanWorkspaceClasses(progress);
-            for (const [id, node] of allClasses) {
-                if (!classes.has(id)) {
-                    classes.set(id, node);
-                }
-            }
+            state = await computeState(progress);
         }
     );
 
-    const ancestors = resolveLayeredNodes(
-        collectAncestors(focusNode.id, classes),
-        classes
-    );
-    const descendants = resolveLayeredNodes(
-        collectDescendants(focusNode.id, classes),
-        classes
-    );
+    if (!state) {
+        return;
+    }
+    const finalState: PanelState = state;
 
-    const fileUris = [...new Set([...classes.values()].map(n => n.fileUri))];
     await openWebview(
         context,
         'pytreeClassTree',
         Messages.webView.titles.completeClassTree(focusNode.name),
-        renderClassTree(focusNode, ancestors, descendants),
-        fileUris
+        finalState.html,
+        finalState.fileUris,
+        '',
+        () => computeState()
     );
 }

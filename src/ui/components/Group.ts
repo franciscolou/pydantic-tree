@@ -4,7 +4,12 @@ export interface GroupProps {
     className?: string;
     clipPath?: string;
     dataPtBox?: boolean;
+    dataPtBoxId?: string;
     children: string;
+}
+
+function escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
 export function Group({
@@ -13,6 +18,7 @@ export function Group({
     className,
     clipPath,
     dataPtBox,
+    dataPtBoxId,
     children,
 }: GroupProps): string {
     const attrs = [
@@ -21,6 +27,7 @@ export function Group({
         className ? `class="${className}"` : '',
         clipPath ? `clip-path="${clipPath}"` : '',
         dataPtBox ? 'data-pt-box' : '',
+        dataPtBoxId ? `data-pt-box-id="${escapeAttr(dataPtBoxId)}"` : '',
     ]
         .filter(Boolean)
         .join(' ');

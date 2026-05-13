@@ -4,7 +4,7 @@ import { scanWorkspaceClasses } from '../utils/scan';
 import { Messages } from '../config';
 import { resolveLayeredNodes } from '../utils/resolve';
 import { collectAncestors, collectDescendants } from '../ui/utils/resolve';
-import { openWebview } from '../utils/webview';
+import { openWebview, PanelState } from '../utils/webview';
 import { renderMultiTree } from '../ui/render/trees/pick';
 
 export async function showPickClassesTree(context: vscode.ExtensionContext) {
@@ -66,32 +66,57 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
         return;
     }
 
-    const trees = selected.map(item => {
-        const focus = allClasses.get(item.nodeId)!;
-        const ancestorLayers = resolveLayeredNodes(
-            collectAncestors(focus.id, allClasses),
-            allClasses
-        );
-        const descendantLayers = isComplete
-            ? resolveLayeredNodes(
-                  collectDescendants(focus.id, allClasses),
-                  allClasses
-              )
-            : [];
-        return { focus, ancestorLayers, descendantLayers };
-    });
+    const selectedIds = selected.map(s => s.nodeId);
 
-    const fileUris = [...new Set([...allClasses.values()].map(n => n.fileUri))];
+    const computeState = async (): Promise<PanelState | null> => {
+        const classes = await scanWorkspaceClasses();
+        if (!classes.size) {
+            return null;
+        }
+        const presentIds = selectedIds.filter(id => classes.has(id));
+        if (!presentIds.length) {
+            return null;
+        }
+        const trees = presentIds.map(id => {
+            const focus = classes.get(id)!;
+            const ancestorLayers = resolveLayeredNodes(
+                collectAncestors(focus.id, classes),
+                classes
+            );
+            const descendantLayers = isComplete
+                ? resolveLayeredNodes(
+                      collectDescendants(focus.id, classes),
+                      classes
+                  )
+                : [];
+            return { focus, ancestorLayers, descendantLayers };
+        });
+        const fileUris = [
+            ...new Set([...classes.values()].map(n => n.fileUri)),
+        ];
+        return {
+            html: renderMultiTree(trees),
+            fileUris,
+            classes,
+        };
+    };
+
+    const state = await computeState();
+    if (!state) {
+        vscode.window.showInformationMessage(Messages.noClassesFound);
+        return;
+    }
     const extraKey = [
         isComplete ? 'complete' : 'simple',
-        ...selected.map(s => s.nodeId).sort(),
+        ...selectedIds.slice().sort(),
     ].join('\0');
     await openWebview(
         context,
         'pytreePickedClasses',
         Messages.webView.titles.pickedClassesTree,
-        renderMultiTree(trees),
-        fileUris,
-        extraKey
+        state.html,
+        state.fileUris,
+        extraKey,
+        computeState
     );
 }
