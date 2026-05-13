@@ -6,6 +6,14 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 - Currently tudying possible new features and preventive fixes for potential bugs.
 
+
+## [0.0.7] - 2026-05-13
+
+### Changed
+
+- Removed unnecessary file for building the extension package
+
+
 ## [0.0.6] - 2026-05-13
 
 ### Added
