@@ -167,13 +167,15 @@ export function buildTreeLayout(
             orderedAncestorLayers,
             ancestorLayerBoxes,
             0,
-            focus.id
+            focus.id,
+            focus.name
         ) +
         renderDescendantEdges(
             orderedDescendantLayers,
             descendantLayerBoxes,
             focusRendered.height,
-            focus.id
+            focus.id,
+            focus.name
         );
 
     return { svg: edgesSvg + boxesSvg, halfWidth, topY, bottomY };

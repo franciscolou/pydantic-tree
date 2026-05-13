@@ -10,6 +10,11 @@ import {
     Group,
 } from '../components';
 
+let _workspaceUri = '';
+export function setWorkspaceUri(uri: string): void {
+    _workspaceUri = uri.replace(/\/?$/, '');
+}
+
 export function collectInheritedNames(
     node: ClassNode,
     allNodes: Map<string, ClassNode>
@@ -256,7 +261,14 @@ export function computeMethodLayouts(
 function computeFilePathLines(fileUri: string, boxWidth: number): string[] {
     const { sidePadding, filePathCharWidth } = UI.box;
     const maxChars = Math.floor((boxWidth - sidePadding) / filePathCharWidth);
-    const path = decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
+    const absPath = decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
+    const wsPath = _workspaceUri
+        ? decodeURIComponent(_workspaceUri.replace(/^file:\/\//, ''))
+        : '';
+    const path =
+        wsPath && absPath.startsWith(wsPath)
+            ? absPath.slice(wsPath.length) || '/'
+            : absPath;
     if (path.length <= maxChars) {
         return [path];
     }

@@ -24,12 +24,17 @@ function interactiveHollowArrow(
     y: number,
     color: string,
     childId: string,
-    parentId: string
+    parentId: string,
+    childName?: string,
+    parentName?: string
 ): string {
     const pad = 6;
     const hitArea = `<polygon points="${x},${y - pad} ${x - ARROW_W / 2 - pad},${y + ARROW_H + pad} ${x + ARROW_W / 2 + pad},${y + ARROW_H + pad}" fill="transparent" stroke="none"/>`;
     const arrow = hollowArrow(x, y, color);
-    return `<g data-pt-edge="1" data-pt-edge-child="${escapeAttr(childId)}" data-pt-edge-parent="${escapeAttr(parentId)}" style="cursor: grab">${hitArea}${arrow}</g>`;
+    const nameAttrs = childName && parentName
+        ? ` data-pt-edge-child-name="${escapeAttr(childName)}" data-pt-edge-parent-name="${escapeAttr(parentName)}"`
+        : '';
+    return `<g data-pt-edge="1" data-pt-edge-child="${escapeAttr(childId)}" data-pt-edge-parent="${escapeAttr(parentId)}"${nameAttrs} style="cursor: grab">${hitArea}${arrow}</g>`;
 }
 
 /* =========================================================
@@ -43,6 +48,8 @@ export interface EdgeConnection {
     childTop: number;
     parentId?: string;
     childId?: string;
+    parentName?: string;
+    childName?: string;
 }
 
 // Assigns a Y offset to each horizontal segment so that overlapping segments
@@ -270,14 +277,14 @@ export function drawConnections(
 
     let svg = '';
     connections.forEach((conn, i) => {
-        const { parentBottom, childTop, parentId, childId } = conn;
+        const { parentBottom, childTop, parentId, childId, parentName, childName } = conn;
         const edgeY = edgeYs[i];
         const color = palette[colorIndices[i] % palette.length];
         const pX = parentAttachXs[i];
         const cX = childAttachXs[i];
         svg +=
             parentId && childId
-                ? interactiveHollowArrow(pX, parentBottom, color, childId, parentId)
+                ? interactiveHollowArrow(pX, parentBottom, color, childId, parentId, childName, parentName)
                 : hollowArrow(pX, parentBottom, color);
         svg += Line({
             x1: pX,
@@ -316,6 +323,8 @@ export function renderComponentEdges(
         adjGap: number;
         parentId: string;
         childId: string;
+        parentName: string;
+        childName: string;
     };
     const all: Conn[] = [];
 
@@ -332,6 +341,8 @@ export function renderComponentEdges(
                         adjGap: i,
                         parentId: parent.id,
                         childId: child.id,
+                        parentName: parent.name,
+                        childName: child.name,
                     });
                 }
             });
@@ -351,6 +362,8 @@ export function renderComponentEdges(
                             adjGap: -1,
                             parentId: parent.id,
                             childId: child.id,
+                            parentName: parent.name,
+                            childName: child.name,
                         });
                     }
                 });
@@ -389,6 +402,8 @@ export function renderComponentEdges(
                 childTop: c.childTop,
                 parentId: c.parentId,
                 childId: c.childId,
+                parentName: c.parentName,
+                childName: c.childName,
             });
         });
         edges += drawConnections(connections, busY, Theme.colors.edgePalette);
@@ -474,7 +489,7 @@ export function renderComponentEdges(
         const sX = sideXs[n];
         const color = palette[laneIdx[n] % palette.length];
 
-        edges += hollowArrow(pX, c.parentBottom, color);
+        edges += interactiveHollowArrow(pX, c.parentBottom, color, c.childId, c.parentId, c.childName, c.parentName);
         edges += Line({
             x1: pX,
             y1: c.parentBottom + ARROW_H,
@@ -505,7 +520,8 @@ export function renderAncestorEdges(
     orderedLayers: ClassNode[][],
     layerBoxes: BoxMeasures[][],
     focusTopY: number,
-    focusId?: string
+    focusId?: string,
+    focusName?: string
 ): string {
     let edges = '';
 
@@ -526,6 +542,8 @@ export function renderAncestorEdges(
             childTop: focusTopY,
             parentId: parentNode.id,
             childId: focusId,
+            parentName: parentNode.name,
+            childName: focusName,
         })
     );
     edges += drawConnections(
@@ -558,6 +576,8 @@ export function renderAncestorEdges(
                         childTop: childBoxes[ci].y,
                         parentId: parentNode.id,
                         childId: childNode.id,
+                        parentName: parentNode.name,
+                        childName: childNode.name,
                     });
                 }
             });
@@ -569,24 +589,10 @@ export function renderAncestorEdges(
         );
 
         // Non-adjacent connections (j < i-1): route outside intermediate boxes.
+        // Each (parent, child) pair gets its own interactive arrow + full routing.
         parentNodes.forEach((parentNode, parentIdx) => {
             const parentBox = parentBoxes[parentIdx];
-            let drewVertical = false;
-
-            const drawVerticalIfNeeded = () => {
-                if (!drewVertical) {
-                    drewVertical = true;
-                    const py = parentBox.y + parentBox.height;
-                    edges += hollowArrow(parentBox.x, py, Theme.colors.edge);
-                    edges += Line({
-                        x1: parentBox.x,
-                        y1: py + ARROW_H,
-                        x2: parentBox.x,
-                        y2: busY,
-                        stroke: Theme.colors.edge,
-                    });
-                }
-            };
+            const py = parentBox.y + parentBox.height;
 
             for (let j = 0; j < i - 1; j++) {
                 const childNodes = orderedLayers[j];
@@ -618,7 +624,7 @@ export function renderAncestorEdges(
                 for (let k = j; k <= i; k++) {
                     nearbyBoxes.push(...layerBoxes[k]);
                 }
-                for (const { childBox } of children) {
+                for (const { childNode, childBox } of children) {
                     const rightEdge =
                         Math.max(
                             ...nearbyBoxes.map(box => box.x + box.width / 2)
@@ -633,7 +639,18 @@ export function renderAncestorEdges(
                             ? rightEdge
                             : leftEdge;
 
-                    drawVerticalIfNeeded();
+                    edges += interactiveHollowArrow(
+                        parentBox.x, py, Theme.colors.edge,
+                        childNode.id, parentNode.id,
+                        childNode.name, parentNode.name
+                    );
+                    edges += Line({
+                        x1: parentBox.x,
+                        y1: py + ARROW_H,
+                        x2: parentBox.x,
+                        y2: busY,
+                        stroke: Theme.colors.edge,
+                    });
                     edges += Line({
                         x1: parentBox.x,
                         y1: busY,
@@ -678,7 +695,8 @@ export function renderDescendantEdges(
     orderedLayers: ClassNode[][],
     layerBoxes: BoxMeasures[][],
     focusBottomY: number,
-    focusId?: string
+    focusId?: string,
+    focusName?: string
 ): string {
     let edges = '';
 
@@ -697,6 +715,8 @@ export function renderDescendantEdges(
             childTop: layerBoxes[0][i].y,
             parentId: focusId,
             childId: childNode.id,
+            parentName: focusName,
+            childName: childNode.name,
         })
     );
     edges += drawConnections(
@@ -729,6 +749,8 @@ export function renderDescendantEdges(
                         childTop: childLayer[k].y,
                         parentId: parentNode.id,
                         childId: childNode.id,
+                        parentName: parentNode.name,
+                        childName: childNode.name,
                     });
                 }
             });
