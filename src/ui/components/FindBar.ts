@@ -13,7 +13,7 @@ export function FindBar(): string {
         border-radius: 6px;
         padding: 6px 10px;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         z-index: 1000;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     "
@@ -37,6 +37,9 @@ export function FindBar(): string {
         "
     />
 
+    <button id="find-case" class="find-toggle" title="Match Case (Alt+C)" style="font-weight: bold; letter-spacing: -1px;">Aa</button>
+    <button id="find-word" class="find-toggle" title="Match Whole Word (Alt+W)" style="text-decoration: underline; text-underline-offset: 3px;">ab</button>
+
     <span
         id="find-count"
         style="
@@ -47,16 +50,8 @@ export function FindBar(): string {
         "
     ></span>
 
-    <button id="find-prev" title="Previous (Shift+Enter)">
-        ↑
-    </button>
-
-    <button id="find-next" title="Next (Enter)">
-        ↓
-    </button>
-
-    <button id="find-close" title="Close (Escape)">
-        ✕
-    </button>
+    <button id="find-prev" title="Previous (Shift+Enter)">↑</button>
+    <button id="find-next" title="Next (Enter)">↓</button>
+    <button id="find-close" title="Close (Escape)">✕</button>
 </div>`;
 }

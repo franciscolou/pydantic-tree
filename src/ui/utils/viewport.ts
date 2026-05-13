@@ -48,6 +48,7 @@ export function renderViewportScript(
   #find-input:focus { outline: 1px solid #007acc; }
   #paths-toggle label { cursor: pointer; user-select: none; }
   #paths-toggle input { cursor: pointer; }
+  .find-toggle.active { background: rgba(0,122,204,0.25) !important; border-color: #007acc !important; }
   [data-pt-edge]:hover polygon[fill="none"] {
     transform-box: fill-box;
     transform-origin: top center;
@@ -340,12 +341,17 @@ ${FindBar()}
 
   let findMatches = [];
   let findCurrent = -1;
-  const findBar    = document.getElementById('find-bar');
-  const findInput  = document.getElementById('find-input');
+  let findCaseSensitive = false;
+  let findWholeWord = false;
+
+  const findBar     = document.getElementById('find-bar');
+  const findInput   = document.getElementById('find-input');
   const findCountEl = document.getElementById('find-count');
-  const findPrev   = document.getElementById('find-prev');
-  const findNext   = document.getElementById('find-next');
-  const findClose  = document.getElementById('find-close');
+  const findPrev    = document.getElementById('find-prev');
+  const findNext    = document.getElementById('find-next');
+  const findClose   = document.getElementById('find-close');
+  const findCaseBtn = document.getElementById('find-case');
+  const findWordBtn = document.getElementById('find-word');
 
   let hlGroup = null;
 
@@ -411,14 +417,25 @@ ${FindBar()}
     update();
   }
 
+  function textMatches(text, query) {
+    if (findWholeWord) {
+      const escaped = query.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+      const flags = findCaseSensitive ? '' : 'i';
+      return new RegExp('\\b' + escaped + '\\b', flags).test(text);
+    }
+    if (findCaseSensitive) {
+      return text.includes(query);
+    }
+    return text.toLowerCase().includes(query.toLowerCase());
+  }
+
   function doSearch(query) {
     findMatches = [];
     findCurrent = -1;
     clearHighlights();
     if (!query.trim()) { updateCount(); return; }
-    const q = query.toLowerCase();
-    viewport.querySelectorAll('text').forEach(t => {
-      if (t.textContent.toLowerCase().includes(q)) findMatches.push(t);
+    viewport.querySelectorAll('text:not([data-pt-section-label])').forEach(t => {
+      if (textMatches(t.textContent, query)) findMatches.push(t);
     });
     if (findMatches.length) {
       findCurrent = 0;
@@ -451,13 +468,28 @@ ${FindBar()}
     findInput.value = '';
   }
 
+  function toggleFindCase() {
+    findCaseSensitive = !findCaseSensitive;
+    findCaseBtn.classList.toggle('active', findCaseSensitive);
+    doSearch(findInput.value);
+  }
+
+  function toggleFindWord() {
+    findWholeWord = !findWholeWord;
+    findWordBtn.classList.toggle('active', findWholeWord);
+    doSearch(findInput.value);
+  }
+
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
       openFindBar();
-    } else if (e.key === 'Escape' && findBar.style.display !== 'none') {
-      closeFindBar();
+      return;
     }
+    if (findBar.style.display === 'none') return;
+    if (e.altKey && e.key.toLowerCase() === 'c') { e.preventDefault(); toggleFindCase(); }
+    if (e.altKey && e.key.toLowerCase() === 'w') { e.preventDefault(); toggleFindWord(); }
+    if (e.key === 'Escape') { closeFindBar(); }
   });
 
   findInput.addEventListener('input', () => doSearch(findInput.value));
@@ -466,6 +498,8 @@ ${FindBar()}
     if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
   });
 
+  findCaseBtn.addEventListener('click', toggleFindCase);
+  findWordBtn.addEventListener('click', toggleFindWord);
   findPrev.addEventListener('click',  () => navigate(-1));
   findNext.addEventListener('click',  () => navigate(1));
   findClose.addEventListener('click', () => closeFindBar());

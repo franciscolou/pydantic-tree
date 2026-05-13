@@ -402,6 +402,7 @@ function renderSectionLabel(
             x: 16,
             y,
             fontSize: Theme.font.size.normal,
+            sectionLabel: true,
             children: TSpan({
                 fill: Theme.colors.sectionLabel,
                 fontStyle: 'italic',
