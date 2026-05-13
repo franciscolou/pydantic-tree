@@ -4,6 +4,7 @@ import type {
     MethodParam,
     MethodDef,
     AttrDef,
+    PropDef,
     BaseRef,
 } from '../types';
 
@@ -16,6 +17,7 @@ const ABSTRACT_BASE_REGEX = /\b(?:abc\.)?ABC\b/;
 const ABSTRACT_METHOD_REGEX = /^\s*@(?:abc\.)?abstractmethod\b/;
 const CLASS_METHOD_REGEX = /^\s*@classmethod\b/;
 const STATIC_METHOD_REGEX = /^\s*@staticmethod\b/;
+const PROPERTY_REGEX = /^\s*@property\b/;
 
 const CLASS_BASES_REGEX = /class\s+\w+\s*\(([^)]+)\)/;
 const DEF_START_REGEX = /^\s*def\s+/;
@@ -23,6 +25,8 @@ const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
 const ATTR_DECL_REGEX =
     /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=\n]+?)(?:\s*=\s*(.+))?$/;
+const ENUM_MEMBER_REGEX =
+    /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
 const BARE_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_.]*/;
 
 /* =========================================================
@@ -155,6 +159,26 @@ function extractAttribute(
     };
 }
 
+function extractProperty(
+    sym: vscode.DocumentSymbol,
+    document: vscode.TextDocument
+): PropDef | undefined {
+    const limit = Math.min(sym.range.start.line + 10, document.lineCount - 1);
+    for (let l = sym.range.start.line; l <= limit; l++) {
+        const t = document.lineAt(l).text;
+        if (DEF_START_REGEX.test(t)) {
+            const declText = collectMethodDeclText(l, document);
+            const match = declText.match(METHOD_DECL_REGEX);
+            return {
+                name: sym.name,
+                returnType: match?.[3]?.trim() || undefined,
+                definedAtLine: sym.range.start.line,
+            };
+        }
+    }
+    return undefined;
+}
+
 function collectClassDeclLines(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
@@ -195,20 +219,58 @@ async function extractClassFromSymbol(
 
     const methods: MethodDef[] = [];
     const attributes: AttrDef[] = [];
+    const properties: PropDef[] = [];
 
     for (const child of sym.children) {
         switch (child.kind) {
             case vscode.SymbolKind.Method:
             case vscode.SymbolKind.Function:
-            case vscode.SymbolKind.Constructor:
-                methods.push(extractMethod(child, document));
+            case vscode.SymbolKind.Constructor: {
+                let isProperty = false;
+                const scanLimit = Math.min(
+                    child.range.start.line + 10,
+                    document.lineCount - 1
+                );
+                for (let l = child.range.start.line; l <= scanLimit; l++) {
+                    const t = document.lineAt(l).text;
+                    if (PROPERTY_REGEX.test(t)) { isProperty = true; break; }
+                    if (DEF_START_REGEX.test(t)) { break; }
+                }
+                if (isProperty) {
+                    const prop = extractProperty(child, document);
+                    if (prop) { properties.push(prop); }
+                } else {
+                    methods.push(extractMethod(child, document));
+                }
                 break;
+            }
             case vscode.SymbolKind.Variable:
-            case vscode.SymbolKind.Property:
-            case vscode.SymbolKind.Field: {
+            case vscode.SymbolKind.Field:
+            case vscode.SymbolKind.Constant: {
                 const lineText = document.lineAt(child.range.start.line).text;
                 if (ATTR_DECL_REGEX.test(lineText)) {
                     attributes.push(extractAttribute(child, document));
+                }
+                break;
+            }
+            case vscode.SymbolKind.Property: {
+                const prop = extractProperty(child, document);
+                if (prop) { properties.push(prop); }
+                break;
+            }
+            case vscode.SymbolKind.EnumMember: {
+                const lineText = document.lineAt(child.range.start.line).text;
+                if (ATTR_DECL_REGEX.test(lineText)) {
+                    attributes.push(extractAttribute(child, document));
+                } else {
+                    const m = lineText.match(ENUM_MEMBER_REGEX);
+                    if (m) {
+                        attributes.push({
+                            name: m[1],
+                            defaultValue: m[2].trim(),
+                            definedAtLine: child.range.start.line,
+                        });
+                    }
                 }
                 break;
             }
@@ -224,6 +286,7 @@ async function extractClassFromSymbol(
         name: sym.name,
         bases,
         attributes,
+        properties,
         methods,
         definedAtLine: sym.range.start.line,
         fileUri: document.uri.toString(),

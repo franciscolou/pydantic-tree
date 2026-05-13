@@ -21,6 +21,12 @@ export interface MethodDef {
     isStaticMethod?: boolean;
 }
 
+export interface PropDef {
+    name: string;
+    returnType?: string;
+    definedAtLine: number;
+}
+
 export interface BaseRef {
     name: string;
     id?: string;

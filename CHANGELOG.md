@@ -4,7 +4,10 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Unreleased
 
-- Currently tudying possible new features and preventive fixes for potential bugs.
+### Added
+
+- Class boxes now display a dedicated **Properties** section for `@property`-decorated members, showing `name → ReturnType`
+- `ClassVar` attributes (previously silently dropped) are now rendered correctly — Pylance reports them as `SymbolKind.Constant`, which is now handled alongside `Variable` and `Field`
 
 
 ## [0.0.7] - 2026-05-13

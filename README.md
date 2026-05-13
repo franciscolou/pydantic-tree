@@ -80,10 +80,12 @@ Every class box uses color and symbols consistently across all tree views.
 | --- | --- |
 | **Green header** background | Conventional (concrete) class |
 | **Yellow-green header** background | Abstract class (`metaclass=ABCMeta` or inherits `ABC`) |
-| **Blue** text | Attribute name |
+| **Blue** text | Attribute or property name |
 | **Yellow** text | Method name |
 | `(abc)` prefix before a method | Abstract method (`@abstractmethod`) |
-| **Pink / purple** text | Attribute or method overridden from a parent class |
+| **Pink / purple** text | Attribute, property, or method overridden from a parent class |
+
+Each class box groups members into labelled sections in order: **Attributes**, **Properties** (for `@property` members), then a divider, followed by **Class Methods**, **Static Methods**, and **Methods**. Only the sections that have members are rendered.
 
 ---
 
@@ -145,5 +147,7 @@ class MyClass:
 ```
 
 This is intentional: it encourages explicit, typed class design and keeps the tree uncluttered.
+
+**`@property` members appear in the Properties section, not Methods.** Properties are rendered as `name → ReturnType` to reflect their attribute-like access semantics. Setter and deleter overloads (`@x.setter`, `@x.deleter`) are not shown separately.
 
 **Non-Python base classes are shown by name only.** If a base class is not resolvable within the workspace (e.g. a third-party library class), PyTree displays the name without expanding its members.

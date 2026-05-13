@@ -1,4 +1,4 @@
-import type { ClassNode, RenderedBox, MethodDef } from '../../types';
+import type { ClassNode, RenderedBox, MethodDef, PropDef } from '../../types';
 import { Theme, UI, Messages } from '../../config';
 import {
     ClassBox,
@@ -18,8 +18,9 @@ export function setWorkspaceUri(uri: string): void {
 export function collectInheritedNames(
     node: ClassNode,
     allNodes: Map<string, ClassNode>
-): { attrs: Set<string>; methods: Set<string> } {
+): { attrs: Set<string>; props: Set<string>; methods: Set<string> } {
     const attrs = new Set<string>();
+    const props = new Set<string>();
     const methods = new Set<string>();
     const visited = new Set<string>();
     const stack: string[] = node.bases
@@ -38,6 +39,9 @@ export function collectInheritedNames(
         for (const attr of base.attributes) {
             attrs.add(attr.name);
         }
+        for (const prop of base.properties) {
+            props.add(prop.name);
+        }
         for (const method of base.methods) {
             methods.add(method.name);
         }
@@ -47,7 +51,7 @@ export function collectInheritedNames(
             }
         }
     }
-    return { attrs, methods };
+    return { attrs, props, methods };
 }
 
 function renderTypeSpans(typeStr: string): string {
@@ -302,17 +306,23 @@ export function computeBoxWidth(
 ): number {
     const { minWidth, maxWidth, charWidth, sidePadding } = UI.box;
     const attrTexts = node.attributes.flatMap(attr => {
-        const base = `${attr.name}: ${attr.type ?? '?'}`;
-        if (!attr.defaultValue) {
+        const base = attr.type
+            ? `${attr.name}: ${attr.type}`
+            : `${attr.name} = ${attr.defaultValue ?? ''}`;
+        if (!attr.defaultValue || !attr.type) {
             return [base];
         }
         const [first, ...rest] = attr.defaultValue.split('\n');
         return [`${base} = ${first}`, ...rest];
     });
+    const propTexts = node.properties.map(p =>
+        p.returnType ? `${p.name} → ${p.returnType}` : p.name
+    );
     const methodTexts = layouts.flatMap(layout => layout.measureLines);
     const longestLineLength = Math.max(
         node.name.length,
         ...attrTexts.map(t => t.length),
+        ...propTexts.map(t => t.length),
         ...methodTexts.map(t => t.length),
         10
     );
@@ -368,10 +378,16 @@ export function measureClassBox(
         y += attrLineCount * lineHeight;
     }
 
+    if (node.properties.length) {
+        if (node.attributes.length) { y += sectionGap; }
+        y += lineHeight; // "Properties" label
+        y += node.properties.length * lineHeight;
+    }
+
     const hasAnyMethod =
         classMethods.length || staticMethods.length || regularMethods.length;
     if (hasAnyMethod) {
-        if (node.attributes.length) {
+        if (node.attributes.length || node.properties.length) {
             y += sectionGap / 2 + sectionTopPadding;
         }
         if (classMethods.length) {
@@ -427,23 +443,26 @@ function renderAttributes(
                 ? attr.defaultValue.split('\n')
                 : [];
 
+            const nameColor = inherited.attrs.has(attr.name)
+                ? Theme.colors.override
+                : Theme.colors.attribute;
             const firstText = Text({
                 x: baseX,
                 y,
                 fontSize: Theme.font.size.normal,
-                children:
-                    TSpan({
-                        fill: inherited.attrs.has(attr.name)
-                            ? Theme.colors.override
-                            : Theme.colors.attribute,
-                        children: attr.name,
-                    }) +
-                    TSpan({ fill: Theme.colors.text, children: ': ' }) +
-                    renderTypeSpans(attr.type ?? '?') +
-                    (firstDefault !== undefined
-                        ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
-                          renderPythonValue(firstDefault)
-                        : ''),
+                children: attr.type
+                    ? TSpan({ fill: nameColor, children: attr.name }) +
+                      TSpan({ fill: Theme.colors.text, children: ': ' }) +
+                      renderTypeSpans(attr.type) +
+                      (firstDefault !== undefined
+                          ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
+                            renderPythonValue(firstDefault)
+                          : '')
+                    : TSpan({ fill: nameColor, children: attr.name }) +
+                      (firstDefault !== undefined
+                          ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
+                            renderPythonValue(firstDefault)
+                          : ''),
             });
             y += lineHeight;
 
@@ -466,6 +485,42 @@ function renderAttributes(
                 line: attr.definedAtLine,
                 role: 'member',
                 children: firstText + contSvg,
+            });
+        })
+        .join('');
+    return { svg, endY: y };
+}
+
+function renderProperties(
+    node: ClassNode,
+    startY: number,
+    baseX: number,
+    inherited: { props: Set<string> }
+): { svg: string; endY: number } {
+    const { lineHeight } = UI.box;
+    let y = startY;
+    const svg = node.properties
+        .map(prop => {
+            const nameColor = inherited.props.has(prop.name)
+                ? Theme.colors.override
+                : Theme.colors.method;
+            const text = Text({
+                x: baseX,
+                y,
+                fontSize: Theme.font.size.normal,
+                children:
+                    TSpan({ fill: nameColor, children: prop.name }) +
+                    (prop.returnType
+                        ? TSpan({ fill: Theme.colors.text, children: ' → ' }) +
+                          renderTypeSpans(prop.returnType)
+                        : ''),
+            });
+            y += lineHeight;
+            return NavGroup({
+                fileUri: node.fileUri,
+                line: prop.definedAtLine,
+                role: 'member',
+                children: text,
             });
         })
         .join('');
@@ -630,7 +685,7 @@ export function renderClassBox(
     node: ClassNode,
     x: number,
     y: number,
-    inherited: { attrs: Set<string>; methods: Set<string> }
+    inherited: { attrs: Set<string>; props: Set<string>; methods: Set<string> }
 ): RenderedBox {
     const {
         headerHeight,
@@ -674,10 +729,20 @@ export function renderClassBox(
         curY = attrs.endY;
     }
 
+    if (node.properties.length) {
+        if (node.attributes.length) { curY += sectionGap; }
+        const lbl = renderSectionLabel(Messages.ui.sections.properties, curY);
+        parts.push(lbl.svg);
+        curY = lbl.endY;
+        const props = renderProperties(node, curY, contentIndent, inherited);
+        parts.push(props.svg);
+        curY = props.endY;
+    }
+
     const hasAnyMethod =
         classMethods.length || staticMethods.length || regularMethods.length;
     if (hasAnyMethod) {
-        if (node.attributes.length) {
+        if (node.attributes.length || node.properties.length) {
             const divider = renderDivider(curY, width);
             parts.push(divider.svg);
             curY = divider.endY;

@@ -30,6 +30,7 @@ export const Messages = {
         abstractIndicator: '(abc)',
         sections: {
             attributes: 'Attributes',
+            properties: 'Properties',
             classMethods: 'Class Methods',
             staticMethods: 'Static Methods',
             methods: 'Methods',

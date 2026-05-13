@@ -5,6 +5,7 @@ export interface ClassNode {
     name: string;
     bases: ParserTypes.BaseRef[];
     attributes: ParserTypes.AttrDef[];
+    properties: ParserTypes.PropDef[];
     methods: ParserTypes.MethodDef[];
     definedAtLine: number;
     fileUri: string;
