@@ -1,6 +1,6 @@
 # PyTree
 
-**PyTree** is a Visual Studio Code extension that renders interactive class inheritance trees for Python projects. For every class in the hierarchy it shows typed attributes, method signatures with parameter types and gives reference to all definitions — giving you an instant, accurate picture of any object model without leaving your editor.
+**PyTree** is a Visual Studio Code extension that renders interactive class inheritance trees for Python projects. For every class in the hierarchy it shows typed attributes and method signatures, highlights overridden members and abstract elements, and gives reference to all definitions — giving you an instant, accurate and interactive picture of any object model without leaving your editor.
 
 ---
 
@@ -59,6 +59,21 @@ A checkbox in the webview header toggles file-path labels on every class box. By
 Hovering over any class name in a Python file shows a small card with two clickable links — **Show Class Tree** and **Show Complete Tree** — that open the corresponding view for that class without moving your cursor to the Command Palette.
 
 <!-- VIDEO PLACEHOLDER: hover demo -->
+
+---
+
+## Colors and Symbols
+
+Every class box uses color and symbols consistently across all tree views.
+
+| Color / Symbol | Meaning |
+| --- | --- |
+| **Green header** background | Conventional (concrete) class |
+| **Yellow-green header** background | Abstract class (`metaclass=ABCMeta` or inherits `ABC`) |
+| **Blue** text | Attribute name |
+| **Yellow** text | Method name |
+| `(abc)` prefix before a method | Abstract method (`@abstractmethod`) |
+| **Pink / purple** text | Attribute or method overridden from a parent class |
 
 ---
 
