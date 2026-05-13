@@ -39,6 +39,8 @@ export const Messages = {
     inheritance: {
         cycleError: (child: string, parent: string) =>
             `Cannot change inheritance: ${parent} is already a descendant of ${child}, which would create a circular inheritance.`,
+        alreadyInheritsError: (child: string, parent: string) =>
+            `Cannot change inheritance: ${child} already inherits from ${parent}.`,
         sameParent: 'The selected class is already the current parent.',
         confirmTitle: (child: string, oldParent: string, newParent: string) =>
             `Change ${child}'s base from ${oldParent} to ${newParent}?`,

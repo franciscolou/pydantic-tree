@@ -39,6 +39,48 @@ export function detectCycle(
     return false;
 }
 
+/**
+ * Returns true if `child` already inherits from `newParentId` via some path
+ * that does NOT go through `oldParentId`. This catches both direct duplicates
+ * (newParent is another existing base) and indirect ones (newParent is an
+ * ancestor through a different branch). Paths through `oldParentId` are
+ * excluded so replacing A→X is not flagged when X was only reachable via A.
+ */
+export function detectAlreadyInherits(
+    child: ClassNode,
+    oldParentId: string,
+    newParentId: string,
+    classes: Map<string, ClassNode>
+): boolean {
+    const visited = new Set<string>();
+    const stack: string[] = [];
+    for (const base of child.bases) {
+        if (base.id && base.id !== oldParentId) {
+            stack.push(base.id);
+        }
+    }
+    while (stack.length) {
+        const id = stack.pop()!;
+        if (visited.has(id)) {
+            continue;
+        }
+        visited.add(id);
+        if (id === newParentId) {
+            return true;
+        }
+        const node = classes.get(id);
+        if (!node) {
+            continue;
+        }
+        for (const base of node.bases) {
+            if (base.id) {
+                stack.push(base.id);
+            }
+        }
+    }
+    return false;
+}
+
 function collectMembers(
     classId: string,
     classes: Map<string, ClassNode>

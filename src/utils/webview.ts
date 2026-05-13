@@ -3,6 +3,7 @@ import type { ClassNode } from '../types';
 import { Messages } from '../config';
 import {
     detectCycle,
+    detectAlreadyInherits,
     detectConflicts,
     rewriteInheritance,
 } from './inheritance';
@@ -126,6 +127,13 @@ async function handleChangeInheritance(
     if (oldParent.id === newParent.id) {
         vscode.window.showInformationMessage(
             Messages.inheritance.sameParent
+        );
+        return;
+    }
+
+    if (detectAlreadyInherits(child, oldParentId, newParentId, classes)) {
+        vscode.window.showErrorMessage(
+            Messages.inheritance.alreadyInheritsError(child.name, newParent.name)
         );
         return;
     }
