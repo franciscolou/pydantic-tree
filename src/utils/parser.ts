@@ -19,7 +19,8 @@ const CLASS_METHOD_REGEX = /^\s*@classmethod\b/;
 const STATIC_METHOD_REGEX = /^\s*@staticmethod\b/;
 const PROPERTY_REGEX = /^\s*@property\b/;
 
-const CLASS_BASES_REGEX = /class\s+\w+\s*\(([^)]+)\)/;
+// Handles PEP 695 type-parameter lists: class Foo[T, U: int](Base):
+const CLASS_BASES_REGEX = /class\s+\w+(?:\[(?:[^\[\]]|\[[^\[\]]*\])*\])?\s*\(([^)]*)\)/;
 const DEF_START_REGEX = /^\s*def\s+/;
 const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
@@ -423,6 +424,29 @@ async function loadClassById(id: string): Promise<ClassNode | undefined> {
  * actual class being inherited from. This naturally disambiguates classes
  * with the same name across files and resolves aliased imports.
  */
+/**
+ * Returns the index of the `(` that opens the base-class list, correctly
+ * skipping an optional PEP 695 type-parameter block `[...]` that may appear
+ * between the class name and the parentheses.  Returns -1 when not found.
+ */
+function findBasesParenIndex(lineText: string): number {
+    const m = lineText.match(/^\s*class\s+\w+/);
+    if (!m) { return -1; }
+    let i = m[0].length;
+    while (i < lineText.length && lineText[i] === ' ') { i++; }
+    if (lineText[i] === '[') {
+        let depth = 1;
+        i++;
+        while (i < lineText.length && depth > 0) {
+            if (lineText[i] === '[') { depth++; }
+            else if (lineText[i] === ']') { depth--; }
+            i++;
+        }
+        while (i < lineText.length && lineText[i] === ' ') { i++; }
+    }
+    return lineText[i] === '(' ? i : -1;
+}
+
 async function resolveBases(
     lineText: string,
     document: vscode.TextDocument,
@@ -437,7 +461,7 @@ async function resolveBases(
         .split(',')
         .map(b => b.trim())
         .filter(Boolean);
-    const parenIdx = lineText.indexOf('(');
+    const parenIdx = findBasesParenIndex(lineText);
     if (parenIdx < 0) {
         return rawBases.map(name => ({ name }));
     }
