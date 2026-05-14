@@ -39,7 +39,13 @@ export function makeClassId(
     name: string,
     line: number
 ): string {
-    return `${fileUri}#${name}@${line}`;
+    const wsUri = vscode.workspace.workspaceFolders?.[0]?.uri.toString();
+    const prefix = wsUri ? wsUri + '/' : null;
+    const key =
+        prefix && fileUri.startsWith(prefix)
+            ? fileUri.slice(prefix.length)
+            : fileUri;
+    return `${key}#${name}@${line}`;
 }
 
 /* =========================================================
@@ -401,7 +407,12 @@ async function loadClassById(id: string): Promise<ClassNode | undefined> {
     if (hashIdx < 0) {
         return undefined;
     }
-    const fileUri = id.slice(0, hashIdx);
+    const key = id.slice(0, hashIdx);
+    const fileUri = key.startsWith('file://')
+        ? key
+        : (vscode.workspace.workspaceFolders?.[0]?.uri.toString() ?? '') +
+          '/' +
+          key;
 
     let targetDoc: vscode.TextDocument;
     try {
