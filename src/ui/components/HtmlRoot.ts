@@ -1,8 +1,5 @@
-export function HtmlRoot(body: string): string {
-    return `<!DOCTYPE html>
-<html>
-<head>
-<style>
+export function renderRootStyles(): string {
+    return `<style>
   :root {
       /* Structural - from VSCode */
       --pt-bg:       var(--vscode-editor-background,       #1e1e1e);
@@ -71,7 +68,14 @@ export function HtmlRoot(body: string): string {
 
       --pt-section-label: #909090;
   }
-</style>
+</style>`;
+}
+
+export function HtmlRoot(body: string): string {
+    return `<!DOCTYPE html>
+<html>
+<head>
+${renderRootStyles()}
 </head>
 <body style="margin:0;overflow:hidden;">
 ${body}

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { ClassNode } from '../types';
 import { Messages } from '../config';
+import { renderRootStyles } from '../ui/components';
 import {
     detectCycle,
     detectAlreadyInherits,
@@ -60,6 +61,49 @@ function panelEntryMatches(
         }
     }
     return true;
+}
+
+async function handleExport(msg: {
+    format: string;
+    svgContent?: string;
+    themeKind?: string;
+    base64?: string;
+}): Promise<void> {
+    if (msg.format === 'svg') {
+        const uri = await vscode.window.showSaveDialog({
+            filters: { 'SVG Images': ['svg'] },
+            saveLabel: 'Export',
+        });
+        if (!uri) { return; }
+        await vscode.workspace.fs.writeFile(
+            uri,
+            Buffer.from(msg.svgContent!, 'utf-8')
+        );
+        return;
+    }
+
+    const uri = await vscode.window.showSaveDialog({
+        filters: { 'HTML Files': ['html'] },
+        saveLabel: 'Export',
+    });
+    if (!uri) { return; }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+${renderRootStyles()}
+<style>
+  html, body { margin: 0; padding: 0; background: var(--pt-bg); }
+  svg { display: block; }
+</style>
+</head>
+<body data-vscode-theme-kind="${msg.themeKind ?? 'vscode-dark'}">
+${msg.svgContent}
+</body>
+</html>`;
+
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(html, 'utf-8'));
 }
 
 async function handleNavigate(
@@ -228,6 +272,10 @@ function setupPanel(
                 msg.oldParentId,
                 msg.newParentId
             );
+            return;
+        }
+        if (msg.command === 'export') {
+            await handleExport(msg);
             return;
         }
     });

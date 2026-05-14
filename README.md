@@ -56,6 +56,14 @@ In any tree view, click and drag an inheritance arrow off its current parent and
 
 ---
 
+### Export
+
+Any tree view can be saved to a local file using the **Export** button in the top-right toolbar. Clicking it opens a small dropdown with SVG and HTML format options. 
+
+<!-- VIDEO PLACEHOLDER: export demo -->
+
+---
+
 ### Show All File Paths
 
 A checkbox in the webview header toggles file-path labels on every class box. By default, paths are hidden and only appear on hover; enabling the checkbox keeps them permanently visible — handy when navigating a large workspace with classes spread across many files.
@@ -101,6 +109,7 @@ Every tree view is fully interactive:
 | **Navigate matches**     | `Enter` / `Shift+Enter`, or the Next / Prev buttons                                |
 | **Jump to source**       | Click any class name, attribute, or method — opens the file at the definition line |
 | **Change inheritance**   | Drag an inheritance arrow onto a different class — confirms before rewriting       |
+| **Export**               | Click the Export button (top-right) → choose SVG or HTML → save dialog            |
 
 Pan position, zoom level, and the file-paths checkbox state are persisted per webview session.
 

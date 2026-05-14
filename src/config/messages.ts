@@ -23,6 +23,7 @@ export const Messages = {
         },
         options: {
             showAllFilePaths: 'Show all file paths',
+            export: 'Export',
         },
     },
 

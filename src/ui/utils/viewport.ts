@@ -7,7 +7,7 @@ export function renderBaseStyles(): string {
         font-family: ${Theme.font.family};
     }
 
-    body, svg {
+    body, #svgRoot {
         background: ${Theme.colors.background};
     }
 
@@ -99,6 +99,83 @@ ${FindBar()}
   const showPathsCb = document.getElementById('show-paths-cb');
   showPathsCb.checked = showPaths;
   if (showPaths) svg.classList.add('show-paths');
+
+  // === EXPORT DROPDOWN ===
+  const exportBtnEl  = document.getElementById('export-btn');
+  const exportMenuEl = document.getElementById('export-menu');
+
+  exportBtnEl.addEventListener('click', e => {
+    e.stopPropagation();
+    exportMenuEl.classList.toggle('open');
+  });
+  exportMenuEl.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', () => exportMenuEl.classList.remove('open'));
+
+  function buildExportClone() {
+    const svgEl = document.getElementById('svgRoot');
+    const vpEl  = document.getElementById('viewport');
+    const bbox  = vpEl.getBBox();
+    const pad   = 40;
+    const vbX   = Math.floor(bbox.x - pad);
+    const vbY   = Math.floor(bbox.y - pad);
+    const vbW   = Math.ceil(bbox.width  + pad * 2);
+    const vbH   = Math.ceil(bbox.height + pad * 2);
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('viewBox', vbX + ' ' + vbY + ' ' + vbW + ' ' + vbH);
+    clone.setAttribute('width',  vbW);
+    clone.setAttribute('height', vbH);
+    const vpClone = clone.querySelector('#viewport');
+    if (vpClone) { vpClone.setAttribute('transform', 'translate(0,0) scale(1)'); }
+    return { clone, vbW, vbH };
+  }
+
+  document.getElementById('export-as-html').addEventListener('click', () => {
+    exportMenuEl.classList.remove('open');
+    const { clone } = buildExportClone();
+    const themeKind = document.body.dataset.vscodeThemeKind || 'vscode-dark';
+    vscode.postMessage({
+      command: 'export',
+      format: 'html',
+      svgContent: new XMLSerializer().serializeToString(clone),
+      themeKind,
+    });
+  });
+
+  document.getElementById('export-as-svg').addEventListener('click', () => {
+    exportMenuEl.classList.remove('open');
+    const { clone } = buildExportClone();
+
+    // Resolve CSS custom properties to concrete color values so the SVG renders
+    // correctly as a standalone file (no webview stylesheet in scope).
+    const varNames = [
+      '--pt-bg', '--pt-panel-bg', '--pt-border', '--pt-text',
+      '--pt-header-bg', '--pt-abstract-header-bg', '--pt-header-text',
+      '--pt-filepath-bg', '--pt-filepath-text', '--pt-section-label',
+      '--pt-type', '--pt-string', '--pt-number', '--pt-attribute',
+      '--pt-method', '--pt-override', '--pt-bool', '--pt-edge',
+      '--pt-edge-0', '--pt-edge-1', '--pt-edge-2', '--pt-edge-3',
+      '--pt-edge-4', '--pt-edge-5',
+      '--pt-hover-underline', '--pt-hover-underline-member',
+    ];
+    const tmp = document.createElement('span');
+    tmp.style.display = 'none';
+    document.body.appendChild(tmp);
+    const resolvedVars = varNames.map(v => {
+      tmp.style.color = 'var(' + v + ')';
+      return v + ': ' + getComputedStyle(tmp).color + ';';
+    }).join(' ');
+    tmp.remove();
+
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleEl.textContent = ':root { ' + resolvedVars + ' }';
+    clone.insertBefore(styleEl, clone.firstChild);
+
+    vscode.postMessage({
+      command: 'export',
+      format: 'svg',
+      svgContent: new XMLSerializer().serializeToString(clone),
+    });
+  });
 
   showPathsCb.addEventListener('change', () => {
     showPaths = showPathsCb.checked;

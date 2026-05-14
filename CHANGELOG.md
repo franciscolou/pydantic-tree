@@ -8,6 +8,9 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 - Class boxes now display a dedicated **Properties** section for `@property`-decorated members, showing `name → ReturnType`
 - `ClassVar` attributes (previously silently dropped) are now rendered correctly — Pylance reports them as `SymbolKind.Constant`, which is now handled alongside `Variable` and `Field`
+- Any tree view can now be exported to a local file via the **Export** button in the top-right toolbar. Clicking it opens a small dropdown with two formats:
+  - **SVG** — vector export, infinitely zoomable without any loss of quality; opens in any browser or SVG viewer
+  - **HTML** — self-contained HTML file with full CSS theming (respects light/dark theme), scrollable in any browser
 
 
 ## [0.0.7] - 2026-05-13
