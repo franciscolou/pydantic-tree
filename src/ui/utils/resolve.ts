@@ -28,6 +28,7 @@ function longestPathLayers(
             queue.push(n);
         }
     }
+    queue.sort();
 
     while (queue.length > 0) {
         const curr = queue.shift()!;
@@ -85,7 +86,12 @@ export function buildConnectedComponents(
         groups.get(root)!.push(node);
     }
 
-    return [...groups.values()].sort((a, b) => b.length - a.length);
+    return [...groups.values()].sort((a, b) => {
+        if (b.length !== a.length) { return b.length - a.length; }
+        const minId = (arr: ClassNode[]) =>
+            arr.reduce((m, n) => (n.id < m ? n.id : m), arr[0].id);
+        return minId(a).localeCompare(minId(b));
+    });
 }
 
 export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
@@ -123,7 +129,7 @@ export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
     for (let d = 0; d <= maxDist; d++) {
         const layer = layerMap.get(d);
         if (layer?.length) {
-            layers.push(layer);
+            layers.push(layer.sort((a, b) => a.id.localeCompare(b.id)));
         }
     }
     return layers;

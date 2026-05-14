@@ -16,10 +16,10 @@ export function orderByParentBarycenter(
             n.bases
                 .map(b => b.id)
                 .filter((id): id is string => id !== undefined);
-        return (
+        const diff =
             avgX(baseIds(a), parentPositions) -
-            avgX(baseIds(b), parentPositions)
-        );
+            avgX(baseIds(b), parentPositions);
+        return diff !== 0 ? diff : a.id.localeCompare(b.id);
     });
 }
 
@@ -33,9 +33,9 @@ export function orderByChildBarycenter(
             childLayer
                 .filter(c => c.bases.some(base => base.id === node.id))
                 .map(c => c.id);
-        return (
+        const diff =
             avgX(childrenOf(a), childPositions) -
-            avgX(childrenOf(b), childPositions)
-        );
+            avgX(childrenOf(b), childPositions);
+        return diff !== 0 ? diff : a.id.localeCompare(b.id);
     });
 }
