@@ -13,6 +13,8 @@ All notable changes to the "PyTree" extension will be documented in this file.
 ### Changed
 
 - Fixed a parsing issue where classes declared with PEP 695 (Type Parameter Syntax Enhancement) notation got their inheritances ignored
+- Fixed an issue where the tree rendering result were not being deterministic depending on the classes order returned by the VSCode API
+- Improved element coloring (now identifies pipes (|), commas (,) and keyword arguments)
 
 ## [0.0.7] - 2026-05-13
 
