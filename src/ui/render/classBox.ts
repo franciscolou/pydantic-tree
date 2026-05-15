@@ -203,9 +203,11 @@ function renderPythonValue(expr: string): string {
                   ? Theme.colors.attribute
                   : /[(\[]/.test(expr[j] ?? '')
                     ? Theme.colors.method
-                    : expr[j] === '=' && expr[j + 1] !== '='
-                      ? Theme.colors.attribute
-                      : Theme.colors.text;
+                    : expr[j] === '.'
+                      ? Theme.colors.type
+                      : expr[j] === '=' && expr[j + 1] !== '='
+                        ? Theme.colors.attribute
+                        : Theme.colors.text;
             toks.push({ text: word, color });
             i = j;
             continue;
