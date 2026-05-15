@@ -30,6 +30,23 @@ const ENUM_MEMBER_REGEX =
     /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
 const BARE_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_.]*/;
 
+// Strip a trailing inline Python comment (# ...) from a source line,
+// respecting single-quoted and double-quoted string literals.
+function stripInlineComment(line: string): string {
+    let inStr: string | null = null;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inStr) {
+            if (ch === '\\') { i++; continue; }
+            if (ch === inStr) { inStr = null; }
+        } else {
+            if (ch === '"' || ch === "'") { inStr = ch; }
+            else if (ch === '#') { return line.slice(0, i).trimEnd(); }
+        }
+    }
+    return line;
+}
+
 /* =========================================================
    IDENTIFIERS
    ========================================================= */
@@ -74,7 +91,7 @@ function collectMethodDeclText(
     let foundOpen = false;
     const limit = Math.min(startLine + 30, document.lineCount - 1);
     for (let l = startLine; l <= limit; l++) {
-        const text = document.lineAt(l).text;
+        const text = stripInlineComment(document.lineAt(l).text);
         parts.push(text);
         depth += bracketDepth(text);
         if (!foundOpen && text.includes('(')) {
@@ -135,7 +152,7 @@ function extractAttribute(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
 ): AttrDef {
-    const firstLine = document.lineAt(sym.range.start.line).text;
+    const firstLine = stripInlineComment(document.lineAt(sym.range.start.line).text);
     const match = firstLine.match(ATTR_DECL_REGEX);
 
     const baseIndent = firstLine.match(/^ */)?.[0].length ?? 0;

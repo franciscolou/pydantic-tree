@@ -55,7 +55,7 @@ export function collectInheritedNames(
 }
 
 function renderTypeSpans(typeStr: string): string {
-    const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]])/);
+    const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]|,])/);
     return tokens
         .map(token => {
             if (!token) {
@@ -67,7 +67,7 @@ function renderTypeSpans(typeStr: string): string {
             ) {
                 return TSpan({ fill: Theme.colors.string, children: token });
             }
-            if (token === '[' || token === ']') {
+            if (token === '[' || token === ']' || token === '|' || token === ',') {
                 return TSpan({ fill: Theme.colors.text, children: token });
             }
             return TSpan({ fill: Theme.colors.type, children: token });
@@ -203,7 +203,9 @@ function renderPythonValue(expr: string): string {
                   ? Theme.colors.attribute
                   : /[(\[]/.test(expr[j] ?? '')
                     ? Theme.colors.method
-                    : Theme.colors.text;
+                    : expr[j] === '=' && expr[j + 1] !== '='
+                      ? Theme.colors.attribute
+                      : Theme.colors.text;
             toks.push({ text: word, color });
             i = j;
             continue;
