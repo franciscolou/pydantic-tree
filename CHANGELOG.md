@@ -4,6 +4,10 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Unreleased
 
+- Currently tudying possible new features and preventive fixes for potential bugs.
+
+## [0.0.8] - 2026-05-15
+
 ### Added
 
 - Class boxes now display a dedicated **Properties** section for `@property`-decorated members, showing `name → ReturnType`
@@ -15,13 +19,13 @@ All notable changes to the "PyTree" extension will be documented in this file.
 - Fixed a parsing issue where classes declared with PEP 695 (Type Parameter Syntax Enhancement) notation got their inheritances ignored
 - Fixed an issue where the tree rendering result were not being deterministic depending on the classes order returned by the VSCode API
 - Improved element coloring (now identifies pipes (|), commas (,) and keyword arguments)
+- Added strategies to mitigate zoom tool freezing in very large projects.
 
 ## [0.0.7] - 2026-05-13
 
 ### Changed
 
 - Removed unnecessary file for building the extension package
-
 
 ## [0.0.6] - 2026-05-13
 
