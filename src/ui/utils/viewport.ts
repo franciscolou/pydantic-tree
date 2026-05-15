@@ -24,6 +24,10 @@ export function renderBaseStyles(): string {
     #svgRoot.show-paths .file-path-section {
         opacity: 1;
     }
+
+    #svgRoot.zooming text {
+        visibility: hidden;
+    }
 </style>`;
 }
 
@@ -89,6 +93,11 @@ ${FindBar()}
   const PAN_SENSITIVITY = ${UI.pan.sensitivity};
   const ZOOM_STEP = ${UI.zoom.step};
   const CLICK_THRESHOLD = 4;
+  // Above this many class boxes, switch zoom from direct <g> repaint to
+  // snapshot mode (CSS transform on a wrapper div, commit on wheel idle).
+  // Small trees stay on the original path — no blur, no commit "snap".
+  const LARGE_TREE_THRESHOLD = 50;
+  const isLargeTree = document.getElementById('viewport').querySelectorAll('[data-pt-box]').length >= LARGE_TREE_THRESHOLD;
 
   const currentState = vscode.getState();
   let tx = currentState ? currentState.tx : window.innerWidth / 2;
@@ -183,13 +192,68 @@ ${FindBar()}
     vscode.setState({ tx, ty, scale, showPaths });
   });
 
+  // === SNAPSHOT ZOOM (large trees only) ===
+  // For big trees, repainting the SVG <g> on every wheel event is too slow.
+  // We instead apply a CSS transform to a wrapper <div> (GPU-tiled, cheap)
+  // during active zoom, and "commit" to the <g> when the wheel goes idle.
+  // Small trees skip this — direct <g> repaint is fast enough and avoids the
+  // bitmap blur of snapshot scaling.
+  let wrapper = null;
+  if (isLargeTree) {
+    wrapper = document.createElement('div');
+    wrapper.id = 'zoom-wrapper';
+    wrapper.style.position = 'fixed';
+    wrapper.style.inset = '0';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.transformOrigin = '0 0';
+    wrapper.style.willChange = 'transform';
+    svg.parentNode.insertBefore(wrapper, svg);
+    wrapper.appendChild(svg);
+  }
+
+  let _committedTx = tx;
+  let _committedTy = ty;
+  let _committedScale = scale;
+  let _zoomActive = false;
+  let _zoomEndTimer = null;
+
+  function applySnapshotTransform() {
+    const ds = scale / _committedScale;
+    const dtx = tx - ds * _committedTx;
+    const dty = ty - ds * _committedTy;
+    wrapper.style.transform = 'translate(' + dtx + 'px,' + dty + 'px) scale(' + ds + ')';
+  }
+
   function update() {
+    if (_zoomActive) {
+      _zoomActive = false;
+      svg.classList.remove('zooming');
+      if (_zoomEndTimer) { clearTimeout(_zoomEndTimer); _zoomEndTimer = null; }
+      wrapper.style.transform = '';
+    }
     viewport.setAttribute(
       "transform",
       "translate(" + tx + "," + ty + ") scale(" + scale + ")"
     );
+    _committedTx = tx;
+    _committedTy = ty;
+    _committedScale = scale;
     vscode.setState({ tx, ty, scale, showPaths });
   }
+
+  // When wrapped, the SVG's rect is post-CSS-transform, so we hardcode the
+  // wrapper's natural rect (viewport). Otherwise, fall back to the SVG's own.
+  let _svgRect = isLargeTree
+    ? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+    : svg.getBoundingClientRect();
+  window.addEventListener('resize', () => {
+    if (isLargeTree) {
+      _svgRect.width = window.innerWidth;
+      _svgRect.height = window.innerHeight;
+    } else {
+      _svgRect = svg.getBoundingClientRect();
+    }
+  });
 
   svg.style.cursor = "grab";
   svg.style.userSelect = "none";
@@ -244,10 +308,9 @@ ${FindBar()}
   svg.addEventListener('mouseleave', hideAllTooltips);
 
   function clientToSvg(clientX, clientY) {
-    const r = svg.getBoundingClientRect();
     return {
-      x: (clientX - r.left - tx) / scale,
-      y: (clientY - r.top - ty) / scale,
+      x: (clientX - _svgRect.left - tx) / scale,
+      y: (clientY - _svgRect.top - ty) / scale,
     };
   }
 
@@ -393,23 +456,40 @@ ${FindBar()}
   svg.addEventListener("pointerup", endPan);
   svg.addEventListener("pointercancel", endPan);
 
+  let _wheelRAF = null;
+  let _wheelFactor = 1;
+  let _wheelMx = 0;
+  let _wheelMy = 0;
+
   svg.addEventListener("wheel", e => {
     e.preventDefault();
 
-    const r = svg.getBoundingClientRect();
-    const mx = e.clientX - r.left;
-    const my = e.clientY - r.top;
+    if (isLargeTree) {
+      if (!_zoomActive) {
+        _zoomActive = true;
+        svg.classList.add('zooming');
+      }
+      if (_zoomEndTimer) clearTimeout(_zoomEndTimer);
+      _zoomEndTimer = setTimeout(update, 150);
+    }
+
+    _wheelMx = e.clientX - _svgRect.left;
+    _wheelMy = e.clientY - _svgRect.top;
 
     const dir = e.deltaY < 0 ? 1 : -1;
-    const factor = 1 + dir * ZOOM_STEP;
+    _wheelFactor *= (1 + dir * ZOOM_STEP);
 
-    const newScale = scale * factor;
-
-    tx = mx - (mx - tx) * (newScale / scale);
-    ty = my - (my - ty) * (newScale / scale);
-    scale = newScale;
-
-    update();
+    if (_wheelRAF !== null) return;
+    _wheelRAF = requestAnimationFrame(() => {
+      _wheelRAF = null;
+      const newScale = scale * _wheelFactor;
+      tx = _wheelMx - (_wheelMx - tx) * (newScale / scale);
+      ty = _wheelMy - (_wheelMy - ty) * (newScale / scale);
+      scale = newScale;
+      _wheelFactor = 1;
+      if (isLargeTree) applySnapshotTransform();
+      else update();
+    });
   }, { passive: false });
 
   update();
@@ -446,12 +526,11 @@ ${FindBar()}
   }
 
   function buildHighlightRect(elem, isCurrent) {
-    const r    = elem.getBoundingClientRect();
-    const svgR = svg.getBoundingClientRect();
+    const r = elem.getBoundingClientRect();
     if (!r.width && !r.height) return null;
     const pad = 2;
-    const x = (r.left - svgR.left - tx) / scale - pad;
-    const y = (r.top  - svgR.top  - ty) / scale - pad;
+    const x = (r.left - _svgRect.left - tx) / scale - pad;
+    const y = (r.top  - _svgRect.top  - ty) / scale - pad;
     const w = r.width  / scale + pad * 2;
     const h = r.height / scale + pad * 2;
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -487,10 +566,9 @@ ${FindBar()}
   function panToMatch(index) {
     const elem = findMatches[index];
     if (!elem) return;
-    const r    = elem.getBoundingClientRect();
-    const svgR = svg.getBoundingClientRect();
-    tx += svgR.width  / 2 - (r.left + r.width  / 2 - svgR.left);
-    ty += svgR.height / 2 - (r.top  + r.height / 2 - svgR.top);
+    const r = elem.getBoundingClientRect();
+    tx += _svgRect.width  / 2 - (r.left + r.width  / 2 - _svgRect.left);
+    ty += _svgRect.height / 2 - (r.top  + r.height / 2 - _svgRect.top);
     update();
   }
 
