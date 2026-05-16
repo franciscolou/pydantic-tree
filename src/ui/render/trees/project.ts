@@ -87,6 +87,38 @@ function positionLayerAt(
     return { svgs, positions };
 }
 
+// Returns grid positions sorted by Euclidean distance to the grid centre so
+// that component[0] (the largest) lands on the most central cell.
+function centerFirstGridPositions(
+    n: number,
+    rows: number,
+    cols: number
+): Array<{ row: number; col: number }> {
+    const centerRow = (rows - 1) / 2;
+    const centerCol = (cols - 1) / 2;
+
+    const positions: Array<{ row: number; col: number; dist: number }> = [];
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (r * cols + c < n) {
+                positions.push({
+                    row: r,
+                    col: c,
+                    dist: Math.hypot(r - centerRow, c - centerCol),
+                });
+            }
+        }
+    }
+
+    positions.sort((a, b) => {
+        const dd = a.dist - b.dist;
+        if (Math.abs(dd) > 1e-9) { return dd; }
+        return a.row !== b.row ? a.row - b.row : a.col - b.col;
+    });
+
+    return positions.map(({ row, col }) => ({ row, col }));
+}
+
 /* =========================================================
    FOREST RENDERING
 ========================================================= */
@@ -108,24 +140,16 @@ export function renderProjectTree(
         computeComponentHeight(layers, allNodes, verticalGap)
     );
 
-    const colWidths = Array.from({ length: cols }, (_, c) =>
-        Math.max(
-            0,
-            ...Array.from(
-                { length: rows },
-                (__, r) => widths[r * cols + c] ?? 0
-            )
-        )
-    );
-    const rowHeights = Array.from({ length: rows }, (_, r) =>
-        Math.max(
-            0,
-            ...Array.from(
-                { length: cols },
-                (__, c) => heights[r * cols + c] ?? 0
-            )
-        )
-    );
+    // Assign components to grid cells: biggest (index 0) → most central cell.
+    const gridPos = centerFirstGridPositions(N, rows, cols);
+
+    const colWidths = new Array<number>(cols).fill(0);
+    const rowHeights = new Array<number>(rows).fill(0);
+    for (let ci = 0; ci < N; ci++) {
+        const { row, col } = gridPos[ci];
+        colWidths[col] = Math.max(colWidths[col], widths[ci]);
+        rowHeights[row] = Math.max(rowHeights[row], heights[ci]);
+    }
 
     const colXs = colWidths.reduce<number[]>(
         (acc, _, i) => [
@@ -147,8 +171,7 @@ export function renderProjectTree(
 
     for (let ci = 0; ci < componentLayers.length; ci++) {
         const rawLayers = componentLayers[ci];
-        const col = ci % cols;
-        const row = Math.floor(ci / cols);
+        const { row, col } = gridPos[ci];
         const centerX = colXs[col] + colWidths[col] / 2;
 
         const layers: ClassNode[][] = [];
