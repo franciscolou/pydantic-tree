@@ -100,8 +100,8 @@ ${FindBar()}
   const isLargeTree = document.getElementById('viewport').querySelectorAll('[data-pt-box]').length >= LARGE_TREE_THRESHOLD;
 
   const currentState = vscode.getState();
-  let tx = currentState ? currentState.tx : window.innerWidth / 2;
-  let ty = currentState ? currentState.ty : window.innerHeight / 2;
+  let tx = currentState ? currentState.tx : 0;
+  let ty = currentState ? currentState.ty : 0;
   let scale = currentState ? currentState.scale : ${initialScale};
   let showPaths = currentState ? (currentState.showPaths ?? false) : false;
 
@@ -492,7 +492,16 @@ ${FindBar()}
     });
   }, { passive: false });
 
-  update();
+  if (currentState) {
+    update();
+  } else {
+    requestAnimationFrame(() => {
+      const bbox = viewport.getBBox();
+      tx = window.innerWidth  / 2 - (bbox.x + bbox.width  / 2) * scale;
+      ty = window.innerHeight / 2 - (bbox.y + bbox.height / 2) * scale;
+      update();
+    });
+  }
 
   // === FIND ===
 
