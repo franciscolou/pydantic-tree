@@ -4,7 +4,9 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Unreleased
 
-- Currently tudying possible new features and preventive fixes for potential bugs.
+### Changed
+
+- **Project Tree** now displays larger trees at the center of the grid, instead of top-left to down-right direction.
 
 ## [0.0.8] - 2026-05-15
 
