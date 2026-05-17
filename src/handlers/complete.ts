@@ -84,7 +84,7 @@ export async function showCompleteClassTree(
         Messages.webView.titles.completeClassTree(focusNode.name),
         finalState.html,
         finalState.fileUris,
-        '',
+        'complete:' + focusNode.id,
         () => computeState()
     );
 }

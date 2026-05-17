@@ -57,7 +57,7 @@ export async function showClassTree(
         Messages.webView.titles.classTree(focusNode.name),
         state.html,
         state.fileUris,
-        '',
+        'simple:' + focusNode.id,
         computeState
     );
 }
