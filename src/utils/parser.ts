@@ -604,12 +604,12 @@ function parseParams(raw: string): MethodParam[] {
 
     return splitParams(raw)
         .map(p => p.trim())
-        .filter(p => p && p !== 'self' && p !== 'cls' && !p.startsWith('*'))
+        .filter(p => p && p !== 'self' && p !== 'cls' && p !== '*')
         .map(p => {
             const [nameAndType, defaultValue] = p.split('=');
             const [name, type] = nameAndType.split(':').map(s => s.trim());
             return {
-                name: name?.replace(/^\*+/, ''),
+                name,
                 type: type || undefined,
                 defaultValue: defaultValue?.trim(),
             };
