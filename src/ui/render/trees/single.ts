@@ -199,6 +199,6 @@ export function renderClassTree(
                     transform: 'translate(0,0) scale(1)',
                     children: svg,
                 }),
-        }) + renderViewportScript()
+        }) + renderViewportScript({ focusNodeId: focus.id })
     );
 }

@@ -32,9 +32,13 @@ export function renderBaseStyles(): string {
 }
 
 export function renderViewportScript(
-    opts: { initialScale?: number } = {}
+    opts: { initialScale?: number; focusNodeId?: string } = {}
 ): string {
     const initialScale = opts.initialScale ?? 1;
+    const initialBboxScript = opts.focusNodeId
+        ? `const _focusEl = viewport.querySelector('[data-pt-box-id="' + (window.CSS && CSS.escape ? CSS.escape(${JSON.stringify(opts.focusNodeId)}) : ${JSON.stringify(opts.focusNodeId)}) + '"]');
+      const _initBbox = _focusEl ? _focusEl.getBBox() : viewport.getBBox();`
+        : `const _initBbox = viewport.getBBox();`;
     return `
 <style>
   #find-bar button {
@@ -496,9 +500,9 @@ ${FindBar()}
     update();
   } else {
     requestAnimationFrame(() => {
-      const bbox = viewport.getBBox();
-      tx = window.innerWidth  / 2 - (bbox.x + bbox.width  / 2) * scale;
-      ty = window.innerHeight / 2 - (bbox.y + bbox.height / 2) * scale;
+      ${initialBboxScript}
+      tx = window.innerWidth  / 2 - (_initBbox.x + _initBbox.width  / 2) * scale;
+      ty = window.innerHeight / 2 - (_initBbox.y + _initBbox.height / 2) * scale;
       update();
     });
   }
