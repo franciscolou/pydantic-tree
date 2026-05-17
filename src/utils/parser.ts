@@ -124,11 +124,25 @@ function extractMethod(
         }
     }
 
-    const match = declText.match(METHOD_DECL_REGEX);
+    // Bracket-aware extraction: METHOD_DECL_REGEX uses [^)]* which stops at
+    // the first ')' and misses params whose defaults contain calls like dict().
+    const nameMatch = declText.match(/^\s*def\s+[A-Za-z_][A-Za-z0-9_]*\s*\(/);
+    let params: MethodParam[] = [];
+    let returnType: string | undefined;
+    if (nameMatch) {
+        const openIdx = declText.indexOf('(', nameMatch[0].length - 1);
+        const closeIdx = findMatchingParen(declText, openIdx);
+        if (closeIdx >= 0) {
+            params = parseParams(declText.slice(openIdx + 1, closeIdx));
+            const retMatch = declText.slice(closeIdx + 1).match(/^\s*->\s*([^:]+?)\s*:/);
+            returnType = retMatch?.[1]?.trim();
+        }
+    }
+
     return {
         name: sym.name,
-        params: match ? parseParams(match[2]) : [],
-        returnType: match?.[3]?.trim() || undefined,
+        params,
+        returnType,
         definedAtLine: sym.range.start.line,
         isAbstract: isAbstract || undefined,
         isClassMethod: isClassMethod || undefined,
@@ -573,6 +587,60 @@ function findEnclosingClass(
    HELPERS
    ========================================================= */
 
+// Finds the index of the ')' that closes the '(' at openIdx, respecting
+// nested brackets and string literals. Returns -1 if not found.
+function findMatchingParen(s: string, openIdx: number): number {
+    let depth = 1;
+    let inStr: string | null = null;
+    for (let i = openIdx + 1; i < s.length; i++) {
+        const ch = s[i];
+        if (inStr !== null) {
+            if (ch === '\\') { i++; continue; }
+            if (s.startsWith(inStr, i)) { i += inStr.length - 1; inStr = null; }
+            continue;
+        }
+        if (ch === '"' || ch === "'") {
+            const triple = s[i + 1] === ch && s[i + 2] === ch;
+            inStr = triple ? ch.repeat(3) : ch;
+            if (triple) { i += 2; }
+            continue;
+        }
+        if (ch === '(') { depth++; }
+        else if (ch === ')') { depth--; if (depth === 0) { return i; } }
+    }
+    return -1;
+}
+
+// Splits s at the first '=' that is at bracket/string depth 0 and is not
+// part of ==, !=, <=, >=. Returns [lhs, rhs] (both trimmed), or [s, undefined].
+function splitAtFirstEquals(s: string): [string, string | undefined] {
+    let depth = 0;
+    let inStr: string | null = null;
+    for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (inStr !== null) {
+            if (ch === '\\') { i++; continue; }
+            if (s.startsWith(inStr, i)) { i += inStr.length - 1; inStr = null; }
+            continue;
+        }
+        if (ch === '"' || ch === "'") {
+            const triple = s[i + 1] === ch && s[i + 2] === ch;
+            inStr = triple ? ch.repeat(3) : ch;
+            if (triple) { i += 2; }
+            continue;
+        }
+        if (ch === '(' || ch === '[' || ch === '{') { depth++; continue; }
+        if (ch === ')' || ch === ']' || ch === '}') { depth--; continue; }
+        if (ch === '=' && depth === 0) {
+            const prev = i > 0 ? s[i - 1] : '';
+            const next = s[i + 1] ?? '';
+            if (next === '=' || prev === '!' || prev === '<' || prev === '>' || prev === '=') { continue; }
+            return [s.slice(0, i).trimEnd(), s.slice(i + 1).trimStart()];
+        }
+    }
+    return [s, undefined];
+}
+
 function splitParams(raw: string): string[] {
     const parts: string[] = [];
     let depth = 0;
@@ -606,12 +674,12 @@ function parseParams(raw: string): MethodParam[] {
         .map(p => p.trim())
         .filter(p => p && p !== 'self' && p !== 'cls' && p !== '*')
         .map(p => {
-            const [nameAndType, defaultValue] = p.split('=');
+            const [nameAndType, defaultValue] = splitAtFirstEquals(p);
             const [name, type] = nameAndType.split(':').map(s => s.trim());
             return {
                 name,
                 type: type || undefined,
-                defaultValue: defaultValue?.trim(),
+                defaultValue,
             };
         });
 }

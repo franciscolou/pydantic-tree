@@ -1,4 +1,4 @@
-import type { ClassNode, RenderedBox, MethodDef, PropDef } from '../../types';
+import type { ClassNode, RenderedBox, MethodDef, MethodParam, PropDef } from '../../types';
 import { Theme, UI, Messages } from '../../config';
 import {
     ClassBox,
@@ -54,6 +54,14 @@ export function collectInheritedNames(
     return { attrs, props, methods };
 }
 
+function renderParamName(name: string, color: string): string {
+    const stars = name.match(/^\*+/)?.[0] ?? '';
+    return stars
+        ? TSpan({ fill: Theme.colors.text, children: stars }) +
+          TSpan({ fill: color, children: name.slice(stars.length) })
+        : TSpan({ fill: color, children: name });
+}
+
 function renderTypeSpans(typeStr: string): string {
     const tokens = typeStr.split(/((?:'[^']*')|(?:"[^"]*")|[\[\]|,])/);
     return tokens
@@ -75,18 +83,8 @@ function renderTypeSpans(typeStr: string): string {
         .join('');
 }
 
-const BOOL_KEYWORDS = new Set(['True', 'False', 'None']);
-const PY_KEYWORDS = new Set([
-    'and',
-    'or',
-    'not',
-    'in',
-    'is',
-    'lambda',
-    'if',
-    'else',
-    'for',
-]);
+const BOOL_KEYWORDS = new Set(['True', 'False', 'None', 'and', 'or']);
+const PY_KEYWORDS = new Set(['not', 'in', 'is', 'lambda', 'if', 'else', 'for']);
 
 function escapeXml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -118,10 +116,11 @@ function renderPythonValue(expr: string): string {
                 }
                 j++;
             }
-            toks.push({
-                text: escapeXml(expr.slice(i, j)),
-                color: Theme.colors.string,
-            });
+            const pfxLen = raw.length - q.length;
+            if (pfxLen > 0) {
+                toks.push({ text: escapeXml(expr.slice(i, i + pfxLen)), color: Theme.colors.bool });
+            }
+            toks.push({ text: escapeXml(expr.slice(i + pfxLen, j)), color: Theme.colors.string });
             i = j;
             continue;
         }
@@ -200,7 +199,7 @@ function renderPythonValue(expr: string): string {
             const color = BOOL_KEYWORDS.has(word)
                 ? Theme.colors.bool
                 : PY_KEYWORDS.has(word)
-                  ? Theme.colors.attribute
+                  ? Theme.colors.bool
                   : /[(\[]/.test(expr[j] ?? '')
                     ? Theme.colors.method
                     : expr[j] === '.'
@@ -245,9 +244,11 @@ export function computeMethodLayouts(
         const prefix = method.isAbstract
             ? `${Messages.ui.abstractIndicator} `
             : '';
+        const fmtParam = (param: MethodParam) =>
+            `${param.name}${param.type ? `: ${param.type}` : ''}${param.defaultValue !== undefined ? ` = ${param.defaultValue}` : ''}`;
         const singleLine =
             prefix +
-            `${method.name}(${method.params.map(param => `${param.name}${param.type ? `: ${param.type}` : ''}`).join(', ')})` +
+            `${method.name}(${method.params.map(fmtParam).join(', ')})` +
             `${method.returnType ? ` -> ${method.returnType}` : ''}`;
         if (singleLine.length <= wrapAt) {
             return { wrapped: false, measureLines: [singleLine] };
@@ -256,10 +257,7 @@ export function computeMethodLayouts(
             wrapped: true,
             measureLines: [
                 `${prefix}${method.name}(`,
-                ...method.params.map(
-                    param =>
-                        `${indentStr}${param.name}${param.type ? `: ${param.type}` : ''},`
-                ),
+                ...method.params.map(param => `${indentStr}${fmtParam(param)},`),
                 `) -> ${method.returnType ?? ''}`,
             ],
         };
@@ -580,15 +578,14 @@ function renderMethodRows(
                 const paramsSvg = method.params
                     .map(
                         param =>
-                            TSpan({
-                                fill: Theme.colors.attribute,
-                                children: param.name,
-                            }) +
+                            renderParamName(param.name, Theme.colors.attribute) +
                             (param.type
-                                ? TSpan({
-                                      fill: Theme.colors.text,
-                                      children: ': ',
-                                  }) + renderTypeSpans(param.type)
+                                ? TSpan({ fill: Theme.colors.text, children: ': ' }) +
+                                  renderTypeSpans(param.type)
+                                : '') +
+                            (param.defaultValue !== undefined
+                                ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
+                                  renderPythonValue(param.defaultValue)
                                 : '')
                     )
                     .join(TSpan({ fill: Theme.colors.text, children: ', ' }));
@@ -640,15 +637,14 @@ function renderMethodRows(
                         y,
                         fontSize: Theme.font.size.normal,
                         children:
-                            TSpan({
-                                fill: Theme.colors.attribute,
-                                children: param.name,
-                            }) +
+                            renderParamName(param.name, Theme.colors.attribute) +
                             (param.type
-                                ? TSpan({
-                                      fill: Theme.colors.text,
-                                      children: ': ',
-                                  }) + renderTypeSpans(param.type)
+                                ? TSpan({ fill: Theme.colors.text, children: ': ' }) +
+                                  renderTypeSpans(param.type)
+                                : '') +
+                            (param.defaultValue !== undefined
+                                ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
+                                  renderPythonValue(param.defaultValue)
                                 : '') +
                             TSpan({ fill: Theme.colors.text, children: ',' }),
                     })
