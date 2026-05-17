@@ -4,6 +4,15 @@
 
 ---
 
+## Requirements
+
+- **Python** extension (for language support)
+- **Pylance** (recommended) — PyTree uses VSCode's Language Server API (`DocumentSymbolProvider` and `DefinitionProvider`) to extract class structure and follow base class definitions across files. Pylance provides the richest symbol data, including inferred attribute types.
+
+No additional configuration is needed. The extension activates automatically when you open a Python file.
+
+---
+
 ## Features
 
 ### Simple Tree
@@ -123,15 +132,6 @@ Pan position, zoom level, and the file-paths checkbox state are persisted per we
 | `pytree.showCompleteClassTree` | PyTree: Complete Class Tree | `Ctrl+Alt+T`     |
 | `pytree.showProjectTree`       | PyTree: Project Tree        | `Ctrl+Alt+P`     |
 | `pytree.pickClasses`           | PyTree: Pick Classes...     | —                |
-
----
-
-## Requirements
-
-- **Python** extension (for language support)
-- **Pylance** (recommended) — PyTree uses VSCode's Language Server API (`DocumentSymbolProvider` and `DefinitionProvider`) to extract class structure and follow base class definitions across files. Pylance provides the richest symbol data, including inferred attribute types.
-
-No additional configuration is needed. The extension activates automatically when you open a Python file.
 
 ---
 
