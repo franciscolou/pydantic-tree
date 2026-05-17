@@ -4,9 +4,14 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Unreleased
 
+## Added
+
+- Variadic parameters (*args, **kwargs) now are displayed in method signatures
+
 ### Changed
 
 - **Project Tree** now displays larger trees at the center of the grid, instead of top-left to down-right direction.
+- Fixed an issue where command executions with the same tree type and module, without file changes, reused the panel even when the class was different.
 
 ## [0.0.8] - 2026-05-15
 
