@@ -167,7 +167,9 @@ ${FindBar()}
       '--pt-type', '--pt-string', '--pt-number', '--pt-attribute',
       '--pt-method', '--pt-override', '--pt-bool', '--pt-edge',
       '--pt-edge-0', '--pt-edge-1', '--pt-edge-2', '--pt-edge-3',
-      '--pt-edge-4', '--pt-edge-5',
+      '--pt-edge-4', '--pt-edge-5', '--pt-edge-6', '--pt-edge-7',
+      '--pt-edge-8', '--pt-edge-9', '--pt-edge-10', '--pt-edge-11',
+      '--pt-edge-12', '--pt-edge-13', '--pt-edge-14',
       '--pt-hover-underline', '--pt-hover-underline-member',
     ];
     const tmp = document.createElement('span');

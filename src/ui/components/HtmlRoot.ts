@@ -29,13 +29,22 @@ export function renderRootStyles(): string {
       --pt-bool:      #569cd6;
 
       /* Edge colors */
-      --pt-edge:   var(--vscode-editorWidget-border, #6a6a6a);
-      --pt-edge-0: #7a9fc2;
-      --pt-edge-1: #89b08a;
-      --pt-edge-2: #c2a97a;
-      --pt-edge-3: #a87ec2;
-      --pt-edge-4: #7ab8b5;
-      --pt-edge-5: #c28080;
+      --pt-edge:    var(--vscode-editorWidget-border, #6a6a6a);
+      --pt-edge-0:  #7a9fc2;
+      --pt-edge-1:  #89b08a;
+      --pt-edge-2:  #c2a97a;
+      --pt-edge-3:  #a87ec2;
+      --pt-edge-4:  #7ab8b5;
+      --pt-edge-5:  #c28080;
+      --pt-edge-6:  #d9a45e;
+      --pt-edge-7:  #6dbd6d;
+      --pt-edge-8:  #d8a6c8;
+      --pt-edge-9:  #5dc1a8;
+      --pt-edge-10: #c2b85d;
+      --pt-edge-11: #c27a5d;
+      --pt-edge-12: #9ac260;
+      --pt-edge-13: #b85d8e;
+      --pt-edge-14: #5db8c2;
 
       /* Hover underline on interactive nodes */
       --pt-hover-underline:        rgba(255,255,255,0.85);
@@ -53,12 +62,21 @@ export function renderRootStyles(): string {
       --pt-bool:     var(--vscode-symbolIcon-booleanForeground, #0000ff);
       --pt-number:   #098658;
 
-      --pt-edge-0: #2b6797;
-      --pt-edge-1: #2e6b30;
-      --pt-edge-2: #7d5a00;
-      --pt-edge-3: #6b2f8f;
-      --pt-edge-4: #1d7a75;
-      --pt-edge-5: #8b2222;
+      --pt-edge-0:  #2b6797;
+      --pt-edge-1:  #2e6b30;
+      --pt-edge-2:  #7d5a00;
+      --pt-edge-3:  #6b2f8f;
+      --pt-edge-4:  #1d7a75;
+      --pt-edge-5:  #8b2222;
+      --pt-edge-6:  #a16400;
+      --pt-edge-7:  #1f7a1f;
+      --pt-edge-8:  #8e3d6e;
+      --pt-edge-9:  #157a5d;
+      --pt-edge-10: #6e6900;
+      --pt-edge-11: #823b0f;
+      --pt-edge-12: #4a7300;
+      --pt-edge-13: #6e1e4e;
+      --pt-edge-14: #146b78;
 
       --pt-hover-underline:        rgba(0,0,0,0.85);
       --pt-hover-underline-member: rgba(0,0,0,0.30);
