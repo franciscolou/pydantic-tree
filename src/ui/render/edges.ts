@@ -4,7 +4,6 @@ import { Line } from '../components';
 
 const LANE_STEP = 18;
 const ATTACH_STEP = 14;
-const BYPASS_MARGIN = 40;
 const ARROW_W = 12;
 const ARROW_H = 10;
 
@@ -300,10 +299,17 @@ export function drawConnections(
 }
 
 /* =========================================================
-   COMPONENT EDGES (project tree)
+   LAYERED EDGES — unified renderer for any layered DAG.
+   Used by the project tree directly and by the ancestor/descendant
+   renderers below (which inject the focus class as a layer of size 1).
+   Handles:
+     - adjacent-layer connections via drawConnections (with lanes, palette)
+     - non-adjacent (skip-layer) connections routed through a lateral
+       highway, with vertical Y offsets per shared parent/child and
+       horizontal lane offsets per side.
 ========================================================= */
 
-export function renderComponentEdges(
+export function renderLayeredEdges(
     layers: ClassNode[][],
     layerBoxes: BoxMeasures[][]
 ): string {
@@ -513,251 +519,36 @@ export function renderComponentEdges(
 }
 
 /* =========================================================
-   ANCESTOR EDGES
+   ANCESTOR / DESCENDANT EDGES
+   Thin wrappers around renderLayeredEdges. They inject the focus
+   class as a layer of size 1 so it participates in lane assignment
+   and highway routing exactly like any other class.
 ========================================================= */
 
 export function renderAncestorEdges(
     orderedLayers: ClassNode[][],
     layerBoxes: BoxMeasures[][],
-    focusTopY: number,
-    focusId?: string,
-    focusName?: string
+    focus: ClassNode,
+    focusBox: BoxMeasures
 ): string {
-    let edges = '';
-
-    if (layerBoxes.length === 0) {
-        return edges;
-    }
-
-    // Layer 0: direct parents → focus, drawn with palette colors for visibility
-    const layer0Bottom = Math.max(
-        ...layerBoxes[0].map(box => box.y + box.height)
-    );
-    const busY0 = (layer0Bottom + focusTopY) / 2;
-    const layer0Connections: EdgeConnection[] = orderedLayers[0].map(
-        (parentNode, i) => ({
-            parentX: layerBoxes[0][i].x,
-            parentBottom: layerBoxes[0][i].y + layerBoxes[0][i].height,
-            childX: 0,
-            childTop: focusTopY,
-            parentId: parentNode.id,
-            childId: focusId,
-            parentName: parentNode.name,
-            childName: focusName,
-        })
-    );
-    edges += drawConnections(
-        layer0Connections,
-        busY0,
-        Theme.colors.edgePalette
-    );
-
-    for (let i = 1; i < layerBoxes.length; i++) {
-        const parentNodes = orderedLayers[i];
-        const parentBoxes = layerBoxes[i];
-
-        const busY =
-            (Math.max(...layerBoxes[i].map(box => box.y + box.height)) +
-                Math.min(...layerBoxes[i - 1].map(box => box.y))) /
-            2;
-
-        // Adjacent connections (j === i-1): collect all across every parent, assign lanes, draw.
-        const adjacentConnections: EdgeConnection[] = [];
-        parentNodes.forEach((parentNode, parentIdx) => {
-            const parentBox = parentBoxes[parentIdx];
-            const childNodes = orderedLayers[i - 1];
-            const childBoxes = layerBoxes[i - 1];
-            childNodes.forEach((childNode, ci) => {
-                if ((childNode.bases ?? []).some(b => b.id === parentNode.id)) {
-                    adjacentConnections.push({
-                        parentX: parentBox.x,
-                        parentBottom: parentBox.y + parentBox.height,
-                        childX: childBoxes[ci].x,
-                        childTop: childBoxes[ci].y,
-                        parentId: parentNode.id,
-                        childId: childNode.id,
-                        parentName: parentNode.name,
-                        childName: childNode.name,
-                    });
-                }
-            });
-        });
-        edges += drawConnections(
-            adjacentConnections,
-            busY,
-            Theme.colors.edgePalette
-        );
-
-        // Non-adjacent connections (j < i-1): route outside intermediate boxes.
-        // Each (parent, child) pair gets its own interactive arrow + full routing.
-        parentNodes.forEach((parentNode, parentIdx) => {
-            const parentBox = parentBoxes[parentIdx];
-            const py = parentBox.y + parentBox.height;
-
-            for (let j = 0; j < i - 1; j++) {
-                const childNodes = orderedLayers[j];
-                const childBoxes = layerBoxes[j];
-
-                const children = childNodes
-                    .map((childNode, ci) => ({
-                        childNode,
-                        childBox: childBoxes[ci],
-                    }))
-                    .filter(({ childNode }) =>
-                        (childNode.bases ?? []).some(
-                            b => b.id === parentNode.id
-                        )
-                    );
-
-                if (children.length === 0) {
-                    continue;
-                }
-
-                const childBusY =
-                    (Math.max(
-                        ...layerBoxes[j + 1].map(box => box.y + box.height)
-                    ) +
-                        Math.min(...layerBoxes[j].map(box => box.y))) /
-                    2;
-
-                const nearbyBoxes: BoxMeasures[] = [];
-                for (let k = j; k <= i; k++) {
-                    nearbyBoxes.push(...layerBoxes[k]);
-                }
-                for (const { childNode, childBox } of children) {
-                    const rightEdge =
-                        Math.max(
-                            ...nearbyBoxes.map(box => box.x + box.width / 2)
-                        ) + BYPASS_MARGIN;
-                    const leftEdge =
-                        Math.min(
-                            ...nearbyBoxes.map(box => box.x - box.width / 2)
-                        ) - BYPASS_MARGIN;
-                    // Route to whichever side the parent+child center of mass leans toward.
-                    const sideX =
-                        parentBox.x + childBox.x > rightEdge + leftEdge
-                            ? rightEdge
-                            : leftEdge;
-
-                    edges += interactiveHollowArrow(
-                        parentBox.x, py, Theme.colors.edge,
-                        childNode.id, parentNode.id,
-                        childNode.name, parentNode.name
-                    );
-                    edges += Line({
-                        x1: parentBox.x,
-                        y1: py + ARROW_H,
-                        x2: parentBox.x,
-                        y2: busY,
-                        stroke: Theme.colors.edge,
-                    });
-                    edges += Line({
-                        x1: parentBox.x,
-                        y1: busY,
-                        x2: sideX,
-                        y2: busY,
-                        stroke: Theme.colors.edge,
-                    });
-                    edges += Line({
-                        x1: sideX,
-                        y1: busY,
-                        x2: sideX,
-                        y2: childBusY,
-                        stroke: Theme.colors.edge,
-                    });
-                    edges += Line({
-                        x1: sideX,
-                        y1: childBusY,
-                        x2: childBox.x,
-                        y2: childBusY,
-                        stroke: Theme.colors.edge,
-                    });
-                    edges += Line({
-                        x1: childBox.x,
-                        y1: childBusY,
-                        x2: childBox.x,
-                        y2: childBox.y,
-                        stroke: Theme.colors.edge,
-                    });
-                }
-            }
-        });
-    }
-
-    return edges;
+    // orderedLayers[0] = depth-1 ancestors (closest to focus, largest y).
+    // Reverse so deepest ancestor (most negative y) comes first; focus is the
+    // last layer (largest y).
+    const layers = [...orderedLayers].reverse();
+    layers.push([focus]);
+    const boxes = [...layerBoxes].reverse();
+    boxes.push([focusBox]);
+    return renderLayeredEdges(layers, boxes);
 }
-
-/* =========================================================
-   DESCENDANT EDGES
-========================================================= */
 
 export function renderDescendantEdges(
     orderedLayers: ClassNode[][],
     layerBoxes: BoxMeasures[][],
-    focusBottomY: number,
-    focusId?: string,
-    focusName?: string
+    focus: ClassNode,
+    focusBox: BoxMeasures
 ): string {
-    let edges = '';
-
-    if (layerBoxes.length === 0) {
-        return edges;
-    }
-
-    // Layer 0: focus → direct children, drawn with palette colors for visibility
-    const layer0Top = Math.min(...layerBoxes[0].map(box => box.y));
-    const busY0 = (focusBottomY + layer0Top) / 2;
-    const layer0Connections: EdgeConnection[] = orderedLayers[0].map(
-        (childNode, i) => ({
-            parentX: 0,
-            parentBottom: focusBottomY,
-            childX: layerBoxes[0][i].x,
-            childTop: layerBoxes[0][i].y,
-            parentId: focusId,
-            childId: childNode.id,
-            parentName: focusName,
-            childName: childNode.name,
-        })
-    );
-    edges += drawConnections(
-        layer0Connections,
-        busY0,
-        Theme.colors.edgePalette
-    );
-
-    // Layers i > 0: collect all connections for this gap, assign lanes, draw.
-    for (let i = 1; i < layerBoxes.length; i++) {
-        const parentLayer = layerBoxes[i - 1];
-        const childLayer = layerBoxes[i];
-        const parentNodes = orderedLayers[i - 1];
-        const childNodes = orderedLayers[i];
-
-        const busY =
-            (Math.max(...parentLayer.map(box => box.y + box.height)) +
-                Math.min(...childLayer.map(box => box.y))) /
-            2;
-
-        const connections: EdgeConnection[] = [];
-        parentNodes.forEach((parentNode, j) => {
-            const parentBox = parentLayer[j];
-            childNodes.forEach((childNode, k) => {
-                if ((childNode.bases ?? []).some(b => b.id === parentNode.id)) {
-                    connections.push({
-                        parentX: parentBox.x,
-                        parentBottom: parentBox.y + parentBox.height,
-                        childX: childLayer[k].x,
-                        childTop: childLayer[k].y,
-                        parentId: parentNode.id,
-                        childId: childNode.id,
-                        parentName: parentNode.name,
-                        childName: childNode.name,
-                    });
-                }
-            });
-        });
-
-        edges += drawConnections(connections, busY, Theme.colors.edgePalette);
-    }
-
-    return edges;
+    // orderedLayers[0] = depth-1 descendants. Focus is the first layer (smallest y).
+    const layers = [[focus], ...orderedLayers];
+    const boxes = [[focusBox], ...layerBoxes];
+    return renderLayeredEdges(layers, boxes);
 }

@@ -1,5 +1,5 @@
 import type { ClassNode, BoxMeasures } from '../../../types';
-import { Theme, UI } from '../../../config';
+import { UI } from '../../../config';
 import { Svg, Group, HtmlRoot } from '../../components';
 import {
     renderClassBox,
@@ -7,7 +7,7 @@ import {
     collectInheritedNames,
 } from '../classBox';
 import { renderBaseStyles, renderViewportScript } from '../../utils/viewport';
-import { renderComponentEdges } from '../edges';
+import { renderLayeredEdges } from '../edges';
 import { orderByParentBarycenter } from '../../utils/layout';
 
 const COMPONENT_GAP = 400;
@@ -200,7 +200,7 @@ export function renderProjectTree(
             );
         }
 
-        edgesSvg += renderComponentEdges(layers, layerBoxes);
+        edgesSvg += renderLayeredEdges(layers, layerBoxes);
     }
 
     return HtmlRoot(

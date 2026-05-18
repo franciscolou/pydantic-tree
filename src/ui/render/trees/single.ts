@@ -162,20 +162,24 @@ export function buildTreeLayout(
             ? currentY - verticalGap
             : focusRendered.height;
 
+    const focusBox: BoxMeasures = {
+        x: 0,
+        y: 0,
+        width: focusRendered.width,
+        height: focusRendered.height,
+    };
     const edgesSvg =
         renderAncestorEdges(
             orderedAncestorLayers,
             ancestorLayerBoxes,
-            0,
-            focus.id,
-            focus.name
+            focus,
+            focusBox
         ) +
         renderDescendantEdges(
             orderedDescendantLayers,
             descendantLayerBoxes,
-            focusRendered.height,
-            focus.id,
-            focus.name
+            focus,
+            focusBox
         );
 
     return { svg: edgesSvg + boxesSvg, halfWidth, topY, bottomY };
