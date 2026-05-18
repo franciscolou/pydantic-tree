@@ -19,8 +19,6 @@ const CLASS_METHOD_REGEX = /^\s*@classmethod\b/;
 const STATIC_METHOD_REGEX = /^\s*@staticmethod\b/;
 const PROPERTY_REGEX = /^\s*@property\b/;
 
-// Handles PEP 695 type-parameter lists: class Foo[T, U: int](Base):
-const CLASS_BASES_REGEX = /class\s+\w+(?:\[(?:[^\[\]]|\[[^\[\]]*\])*\])?\s*\(([^)]*)\)/;
 const DEF_START_REGEX = /^\s*def\s+/;
 const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
@@ -248,12 +246,11 @@ async function extractClassFromSymbol(
     document: vscode.TextDocument
 ): Promise<ClassNode> {
     const declLines = collectClassDeclLines(sym, document);
-    const declLineText = declLines[0];
     const isAbstract =
         declLines.some(
             l => ABSTRACT_CLASS_REGEX.test(l) || ABSTRACT_BASE_REGEX.test(l)
         ) || undefined;
-    const bases = await resolveBases(declLineText, document, sym);
+    const bases = await resolveBases(declLines, document, sym);
 
     const methods: MethodDef[] = [];
     const attributes: AttrDef[] = [];
@@ -490,41 +487,74 @@ function findBasesParenIndex(lineText: string): number {
 }
 
 async function resolveBases(
-    lineText: string,
+    declLines: string[],
     document: vscode.TextDocument,
     classSymbol: vscode.DocumentSymbol
 ): Promise<BaseRef[]> {
-    const match = lineText.match(CLASS_BASES_REGEX);
-    if (!match?.[1]?.trim()) {
+    const startLine = classSymbol.range.start.line;
+
+    // Flatten the (possibly multi-line) declaration into a single string while
+    // recording the source (line, column) of each character so we can later
+    // hand a precise position to executeDefinitionProvider.
+    let flat = '';
+    const lineMap: number[] = [];
+    const colMap: number[] = [];
+    for (let li = 0; li < declLines.length; li++) {
+        const text = declLines[li];
+        for (let ci = 0; ci < text.length; ci++) {
+            flat += text[ci];
+            lineMap.push(startLine + li);
+            colMap.push(ci);
+        }
+        if (li < declLines.length - 1) {
+            flat += ' ';
+            lineMap.push(startLine + li);
+            colMap.push(text.length);
+        }
+    }
+
+    const parenIdx = findBasesParenIndex(flat);
+    if (parenIdx < 0) {
+        return [];
+    }
+    const closeIdx = findMatchingParen(flat, parenIdx);
+    if (closeIdx < 0 || !flat.slice(parenIdx + 1, closeIdx).trim()) {
         return [];
     }
 
-    const rawBases = match[1]
-        .split(',')
-        .map(b => b.trim())
-        .filter(Boolean);
-    const parenIdx = findBasesParenIndex(lineText);
-    if (parenIdx < 0) {
-        return rawBases.map(name => ({ name }));
+    // Split base list by top-level commas, respecting bracket depth so that
+    // generic args like `Foo[X, Y]` aren't split incorrectly.
+    const chunks: { raw: string; startIdx: number }[] = [];
+    let depth = 0;
+    let chunkStart = parenIdx + 1;
+    for (let i = parenIdx + 1; i < closeIdx; i++) {
+        const ch = flat[i];
+        if (ch === '(' || ch === '[' || ch === '{') { depth++; }
+        else if (ch === ')' || ch === ']' || ch === '}') { depth--; }
+        else if (ch === ',' && depth === 0) {
+            chunks.push({ raw: flat.slice(chunkStart, i), startIdx: chunkStart });
+            chunkStart = i + 1;
+        }
     }
+    chunks.push({ raw: flat.slice(chunkStart, closeIdx), startIdx: chunkStart });
 
-    let searchFrom = parenIdx;
     return Promise.all(
-        rawBases.map(async raw => {
-            const bareName = raw.match(BARE_NAME_REGEX)?.[0] ?? raw;
-            const idx = lineText.indexOf(bareName, searchFrom);
-            if (idx < 0) {
-                return { name: raw };
-            }
-            searchFrom = idx + bareName.length;
-
-            const id = await resolveBaseId(
-                classSymbol.range.start.line,
-                idx,
-                document
-            );
-            return { name: raw, id };
-        })
+        chunks
+            .filter(c => c.raw.trim())
+            .map(async chunk => {
+                const raw = chunk.raw.trim();
+                const bareName = raw.match(BARE_NAME_REGEX)?.[0] ?? raw;
+                const nameIdx = flat.indexOf(bareName, chunk.startIdx);
+                if (nameIdx < 0) {
+                    return { name: raw };
+                }
+                const id = await resolveBaseId(
+                    lineMap[nameIdx],
+                    colMap[nameIdx],
+                    document
+                );
+                return { name: raw, id };
+            })
     );
 }
 
