@@ -589,9 +589,9 @@ ${FindBar()}
 
   function textMatches(text, query) {
     if (findWholeWord) {
-      const escaped = query.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+      const escaped = query.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
       const flags = findCaseSensitive ? '' : 'i';
-      return new RegExp('\\b' + escaped + '\\b', flags).test(text);
+      return new RegExp('\\\\b' + escaped + '\\\\b', flags).test(text);
     }
     if (findCaseSensitive) {
       return text.includes(query);

@@ -13,7 +13,7 @@ All notable changes to the "PyTree" extension will be documented in this file.
 - **Project Tree** now displays larger trees at the center of the grid, instead of top-left to down-right direction.
 - Fixed an issue where command executions with the same tree type and module, without file changes, reused the panel even when the class was different.
 - Fixed (again) a parsing issue where classes declared with PEP 695 (Type Parameter Syntax Enhancement) notation got their inheritances ignored
-
+- Fixed whole word match toggle in search bar
 
 ## [0.0.8] - 2026-05-15
 
