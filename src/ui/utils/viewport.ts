@@ -139,6 +139,24 @@ ${FindBar()}
     clone.setAttribute('height', vbH);
     const vpClone = clone.querySelector('#viewport');
     if (vpClone) { vpClone.setAttribute('transform', 'translate(0,0) scale(1)'); }
+
+    // Resolve VSCode editor font and bake it into the clone so the exported
+    // file uses the same font outside the webview (where --vscode-* vars are
+    // undefined and would fall back to the browser default).
+    // Must be appended LAST so it wins the cascade over the inline style from
+    // renderBaseStyles() that references var(--vscode-editor-font-family),
+    // and uses !important so any user-agent rule cannot override it.
+    const probe = document.createElement('span');
+    probe.style.display = 'none';
+    probe.style.fontFamily = 'var(--vscode-editor-font-family)';
+    document.body.appendChild(probe);
+    const resolvedFont = getComputedStyle(probe).fontFamily;
+    probe.remove();
+    const fontStyleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    fontStyleEl.textContent =
+      'svg text, text { font-family: ' + resolvedFont + ' !important; }';
+    clone.appendChild(fontStyleEl);
+
     return { clone, vbW, vbH };
   }
 
