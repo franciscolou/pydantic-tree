@@ -6,11 +6,24 @@ import { layerByLongestPath } from '../ui/utils/resolve';
 const EXCLUDED_DIR =
     /[\/\\](\.venv|venv|node_modules|__pycache__|\.git|site-packages)[\/\\]/;
 
+// Pylance resolves every Python stdlib/builtin type (object, str,
+// BaseException, abc.ABC, typing.Protocol, …) to a stub under
+// `dist/typeshed-fallback/stdlib/`. Other LSPs that consume typeshed follow
+// the same `typeshed/stdlib/` convention. Third-party stubs live under
+// `typeshed/stubs/<pkg>/` and are intentionally left untouched so library
+// ancestors stay visible.
+const STDLIB_STUB_PATH =
+    /[\/\\](?:typeshed-fallback|typeshed)[\/\\]stdlib[\/\\]/;
+
 function isWorkspaceFile(uri: vscode.Uri): boolean {
     if (!vscode.workspace.getWorkspaceFolder(uri)) {
         return false;
     }
     return !EXCLUDED_DIR.test(uri.fsPath);
+}
+
+function isPythonStdlib(item: vscode.TypeHierarchyItem): boolean {
+    return STDLIB_STUB_PATH.test(item.uri.path);
 }
 
 function itemKey(item: vscode.TypeHierarchyItem): string {
@@ -66,7 +79,7 @@ export async function prepareTypeHierarchyAt(
 async function bfsTypeHierarchy(
     rootItem: vscode.TypeHierarchyItem,
     command: 'vscode.provideSubtypes' | 'vscode.provideSupertypes',
-    filterUri: (uri: vscode.Uri) => boolean
+    accept: (item: vscode.TypeHierarchyItem) => boolean
 ): Promise<{
     items: Map<string, vscode.TypeHierarchyItem>;
     edges: Map<string, string[]>;
@@ -94,7 +107,7 @@ async function bfsTypeHierarchy(
             const fromKey = itemKey(frontier[i]);
             const neighbours: string[] = [];
             for (const nb of results[i] ?? []) {
-                if (!filterUri(nb.uri)) {
+                if (!accept(nb)) {
                     continue;
                 }
                 const key = itemKey(nb);
@@ -183,8 +196,8 @@ function buildLayersFromBfs(
 
 // Walks supertypes via Pylance, populates `classes` with ancestor ClassNodes,
 // and returns them as longest-path layers (layer 0 = direct parents).
-// Supertypes are not workspace-filtered — ancestors can live in stdlib or
-// third-party libs, matching the previous buildInheritanceMap behaviour.
+// Python stdlib/builtin types (object, str, BaseException, …) are filtered out
+// so they don't clutter every tree; third-party library ancestors are kept.
 export async function buildAncestorLayers(
     rootItem: vscode.TypeHierarchyItem,
     focusNode: ClassNode,
@@ -193,7 +206,7 @@ export async function buildAncestorLayers(
     const { items, edges, fileUris } = await bfsTypeHierarchy(
         rootItem,
         'vscode.provideSupertypes',
-        () => true
+        item => !isPythonStdlib(item)
     );
     const byUriName = await extractIntoClasses(fileUris, classes);
     return buildLayersFromBfs(
@@ -215,7 +228,7 @@ export async function buildDescendantLayers(
     const { items, edges, fileUris } = await bfsTypeHierarchy(
         rootItem,
         'vscode.provideSubtypes',
-        isWorkspaceFile
+        item => isWorkspaceFile(item.uri)
     );
     const byUriName = await extractIntoClasses(fileUris, classes);
     return buildLayersFromBfs(
