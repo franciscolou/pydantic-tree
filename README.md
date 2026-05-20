@@ -27,7 +27,7 @@ Open a tree focused on the class under your cursor, showing all ancestor layers 
 
 ### Complete Tree
 
-Same as the Simple Tree, but also scans the entire workspace to find every subclass and renders descendant layers below the focus class.
+Same as the Simple Tree, but also shows every subclass and renders descendant layers below the focus class.
 
 **Trigger:** `Ctrl + Alt + T` · Command Palette: `PyTree: Complete Class Tree` · Hover link
 
@@ -67,7 +67,7 @@ In any tree view, click and drag an inheritance arrow off its current parent and
 
 ### Export
 
-Any tree view can be saved to a local file using the **Export** button in the top-right toolbar. Clicking it opens a small dropdown with SVG and HTML format options. 
+Any tree view can be saved to a local file using the **Export** button in the top-right toolbar. Clicking it opens a small dropdown with SVG and HTML format options.
 
 <!-- VIDEO PLACEHOLDER: export demo -->
 
@@ -93,14 +93,14 @@ Hovering over any class name in a Python file shows a small card with two clicka
 
 Every class box uses color and symbols consistently across all tree views.
 
-| Color / Symbol | Meaning |
-| --- | --- |
-| **Green header** background | Conventional (concrete) class |
-| **Yellow-green header** background | Abstract class (`metaclass=ABCMeta` or inherits `ABC`) |
-| **Blue** text | Attribute or property name |
-| **Yellow** text | Method name |
-| `(abc)` prefix before a method | Abstract method (`@abstractmethod`) |
-| **Pink / purple** text | Attribute, property, or method overridden from a parent class |
+| Color / Symbol                     | Meaning                                                       |
+| ---------------------------------- | ------------------------------------------------------------- |
+| **Green header** background        | Conventional (concrete) class                                 |
+| **Yellow-green header** background | Abstract class (`metaclass=ABCMeta` or inherits `ABC`)        |
+| **Blue** text                      | Attribute or property name                                    |
+| **Yellow** text                    | Method name                                                   |
+| `(abc)` prefix before a method     | Abstract method (`@abstractmethod`)                           |
+| **Pink / purple** text             | Attribute, property, or method overridden from a parent class |
 
 Each class box groups members into labelled sections in order: **Attributes**, **Properties** (for `@property` members), then a divider, followed by **Class Methods**, **Static Methods**, and **Methods**. Only the sections that have members are rendered.
 
@@ -110,15 +110,15 @@ Each class box groups members into labelled sections in order: **Attributes**, *
 
 Every tree view is fully interactive:
 
-| Action               | How                                                                                |
-| -------------------- | ---------------------------------------------------------------------------------- |
-| **Pan**                  | Click and drag                                                                     |
-| **Zoom**                 | Scroll wheel                                                                       |
-| **Find**                 | `Ctrl+F` / `Cmd+F` — searches class names, methods, atributes, any text            |
-| **Navigate matches**     | `Enter` / `Shift+Enter`, or the Next / Prev buttons                                |
-| **Jump to source**       | Click any class name, attribute, or method — opens the file at the definition line |
-| **Change inheritance**   | Drag an inheritance arrow onto a different class — confirms before rewriting       |
-| **Export**               | Click the Export button (top-right) → choose SVG or HTML → save dialog            |
+| Action                 | How                                                                                |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| **Pan**                | Click and drag                                                                     |
+| **Zoom**               | Scroll wheel                                                                       |
+| **Find**               | `Ctrl+F` / `Cmd+F` — searches class names, methods, atributes, any text            |
+| **Navigate matches**   | `Enter` / `Shift+Enter`, or the Next / Prev buttons                                |
+| **Jump to source**     | Click any class name, attribute, or method — opens the file at the definition line |
+| **Change inheritance** | Drag an inheritance arrow onto a different class — confirms before rewriting       |
+| **Export**             | Click the Export button (top-right) → choose SVG or HTML → save dialog             |
 
 Pan position, zoom level, and the file-paths checkbox state are persisted per webview session.
 

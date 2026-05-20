@@ -1,4 +1,10 @@
-import type { ClassNode, RenderedBox, MethodDef, MethodParam, PropDef } from '../../types';
+import type {
+    ClassNode,
+    RenderedBox,
+    MethodDef,
+    MethodParam,
+    PropDef,
+} from '../../types';
 import { Theme, UI, Messages } from '../../config';
 import {
     ClassBox,
@@ -58,7 +64,7 @@ function renderParamName(name: string, color: string): string {
     const stars = name.match(/^\*+/)?.[0] ?? '';
     return stars
         ? TSpan({ fill: Theme.colors.text, children: stars }) +
-          TSpan({ fill: color, children: name.slice(stars.length) })
+              TSpan({ fill: color, children: name.slice(stars.length) })
         : TSpan({ fill: color, children: name });
 }
 
@@ -75,7 +81,12 @@ function renderTypeSpans(typeStr: string): string {
             ) {
                 return TSpan({ fill: Theme.colors.string, children: token });
             }
-            if (token === '[' || token === ']' || token === '|' || token === ',') {
+            if (
+                token === '[' ||
+                token === ']' ||
+                token === '|' ||
+                token === ','
+            ) {
                 return TSpan({ fill: Theme.colors.text, children: token });
             }
             return TSpan({ fill: Theme.colors.type, children: token });
@@ -118,9 +129,15 @@ function renderPythonValue(expr: string): string {
             }
             const pfxLen = raw.length - q.length;
             if (pfxLen > 0) {
-                toks.push({ text: escapeXml(expr.slice(i, i + pfxLen)), color: Theme.colors.bool });
+                toks.push({
+                    text: escapeXml(expr.slice(i, i + pfxLen)),
+                    color: Theme.colors.bool,
+                });
             }
-            toks.push({ text: escapeXml(expr.slice(i + pfxLen, j)), color: Theme.colors.string });
+            toks.push({
+                text: escapeXml(expr.slice(i + pfxLen, j)),
+                color: Theme.colors.string,
+            });
             i = j;
             continue;
         }
@@ -257,7 +274,9 @@ export function computeMethodLayouts(
             wrapped: true,
             measureLines: [
                 `${prefix}${method.name}(`,
-                ...method.params.map(param => `${indentStr}${fmtParam(param)},`),
+                ...method.params.map(
+                    param => `${indentStr}${fmtParam(param)},`
+                ),
                 `) -> ${method.returnType ?? ''}`,
             ],
         };
@@ -381,7 +400,9 @@ export function measureClassBox(
     }
 
     if (node.properties.length) {
-        if (node.attributes.length) { y += sectionGap; }
+        if (node.attributes.length) {
+            y += sectionGap;
+        }
         y += lineHeight; // "Properties" label
         y += node.properties.length * lineHeight;
     }
@@ -397,12 +418,16 @@ export function measureClassBox(
             y += countLines(classLayouts) * lineHeight;
         }
         if (staticMethods.length) {
-            if (classMethods.length) { y += sectionGap; }
+            if (classMethods.length) {
+                y += sectionGap;
+            }
             y += lineHeight; // "Static Methods" label
             y += countLines(staticLayouts) * lineHeight;
         }
         if (regularMethods.length) {
-            if (classMethods.length || staticMethods.length) { y += sectionGap; }
+            if (classMethods.length || staticMethods.length) {
+                y += sectionGap;
+            }
             y += lineHeight; // "Methods" label
             y += countLines(regularLayouts) * lineHeight;
         }
@@ -457,13 +482,17 @@ function renderAttributes(
                       TSpan({ fill: Theme.colors.text, children: ': ' }) +
                       renderTypeSpans(attr.type) +
                       (firstDefault !== undefined
-                          ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
-                            renderPythonValue(firstDefault)
+                          ? TSpan({
+                                fill: Theme.colors.text,
+                                children: ' = ',
+                            }) + renderPythonValue(firstDefault)
                           : '')
                     : TSpan({ fill: nameColor, children: attr.name }) +
                       (firstDefault !== undefined
-                          ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
-                            renderPythonValue(firstDefault)
+                          ? TSpan({
+                                fill: Theme.colors.text,
+                                children: ' = ',
+                            }) + renderPythonValue(firstDefault)
                           : ''),
             });
             y += lineHeight;
@@ -578,14 +607,21 @@ function renderMethodRows(
                 const paramsSvg = method.params
                     .map(
                         param =>
-                            renderParamName(param.name, Theme.colors.attribute) +
+                            renderParamName(
+                                param.name,
+                                Theme.colors.attribute
+                            ) +
                             (param.type
-                                ? TSpan({ fill: Theme.colors.text, children: ': ' }) +
-                                  renderTypeSpans(param.type)
+                                ? TSpan({
+                                      fill: Theme.colors.text,
+                                      children: ': ',
+                                  }) + renderTypeSpans(param.type)
                                 : '') +
                             (param.defaultValue !== undefined
-                                ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
-                                  renderPythonValue(param.defaultValue)
+                                ? TSpan({
+                                      fill: Theme.colors.text,
+                                      children: ' = ',
+                                  }) + renderPythonValue(param.defaultValue)
                                 : '')
                     )
                     .join(TSpan({ fill: Theme.colors.text, children: ', ' }));
@@ -637,14 +673,21 @@ function renderMethodRows(
                         y,
                         fontSize: Theme.font.size.normal,
                         children:
-                            renderParamName(param.name, Theme.colors.attribute) +
+                            renderParamName(
+                                param.name,
+                                Theme.colors.attribute
+                            ) +
                             (param.type
-                                ? TSpan({ fill: Theme.colors.text, children: ': ' }) +
-                                  renderTypeSpans(param.type)
+                                ? TSpan({
+                                      fill: Theme.colors.text,
+                                      children: ': ',
+                                  }) + renderTypeSpans(param.type)
                                 : '') +
                             (param.defaultValue !== undefined
-                                ? TSpan({ fill: Theme.colors.text, children: ' = ' }) +
-                                  renderPythonValue(param.defaultValue)
+                                ? TSpan({
+                                      fill: Theme.colors.text,
+                                      children: ' = ',
+                                  }) + renderPythonValue(param.defaultValue)
                                 : '') +
                             TSpan({ fill: Theme.colors.text, children: ',' }),
                     })
@@ -730,7 +773,9 @@ export function renderClassBox(
     }
 
     if (node.properties.length) {
-        if (node.attributes.length) { curY += sectionGap; }
+        if (node.attributes.length) {
+            curY += sectionGap;
+        }
         const lbl = renderSectionLabel(Messages.ui.sections.properties, curY);
         parts.push(lbl.svg);
         curY = lbl.endY;
@@ -766,7 +811,9 @@ export function renderClassBox(
             curY = rows.endY;
         }
         if (staticMethods.length) {
-            if (classMethods.length) { curY += sectionGap; }
+            if (classMethods.length) {
+                curY += sectionGap;
+            }
             const lbl = renderSectionLabel(
                 Messages.ui.sections.staticMethods,
                 curY
@@ -785,7 +832,9 @@ export function renderClassBox(
             curY = rows.endY;
         }
         if (regularMethods.length) {
-            if (classMethods.length || staticMethods.length) { curY += sectionGap; }
+            if (classMethods.length || staticMethods.length) {
+                curY += sectionGap;
+            }
             const lbl = renderSectionLabel(Messages.ui.sections.methods, curY);
             parts.push(lbl.svg);
             curY = lbl.endY;

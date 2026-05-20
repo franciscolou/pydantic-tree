@@ -6,7 +6,7 @@ All notable changes to the "PyTree" extension will be documented in this file.
 
 ## Added
 
-- Variadic parameters (*args, **kwargs) now are displayed in method signatures
+- Variadic parameters (\*args, \*\*kwargs) now are displayed in method signatures
 
 ### Changed
 
@@ -15,6 +15,8 @@ All notable changes to the "PyTree" extension will be documented in this file.
 - Fixed (again) a parsing issue where classes declared with PEP 695 (Type Parameter Syntax Enhancement) notation got their inheritances ignored
 - Fixed whole word match toggle in search bar
 - Fixed an issue where the font in webviews wasn't being preserved in exports
+- Use subtypes' VSCode provider to resolve subclasses, making Complete Class Tree outrageously faster
+
 ## [0.0.8] - 2026-05-15
 
 ### Added

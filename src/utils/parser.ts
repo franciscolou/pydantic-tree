@@ -24,8 +24,7 @@ const METHOD_DECL_REGEX =
     /^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?\s*:/;
 const ATTR_DECL_REGEX =
     /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=\n]+?)(?:\s*=\s*(.+))?$/;
-const ENUM_MEMBER_REGEX =
-    /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
+const ENUM_MEMBER_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
 const BARE_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_.]*/;
 
 // Strip a trailing inline Python comment (# ...) from a source line,
@@ -35,11 +34,19 @@ function stripInlineComment(line: string): string {
     for (let i = 0; i < line.length; i++) {
         const ch = line[i];
         if (inStr) {
-            if (ch === '\\') { i++; continue; }
-            if (ch === inStr) { inStr = null; }
+            if (ch === '\\') {
+                i++;
+                continue;
+            }
+            if (ch === inStr) {
+                inStr = null;
+            }
         } else {
-            if (ch === '"' || ch === "'") { inStr = ch; }
-            else if (ch === '#') { return line.slice(0, i).trimEnd(); }
+            if (ch === '"' || ch === "'") {
+                inStr = ch;
+            } else if (ch === '#') {
+                return line.slice(0, i).trimEnd();
+            }
         }
     }
     return line;
@@ -113,9 +120,15 @@ function extractMethod(
     const limit = Math.min(sym.range.start.line + 10, document.lineCount - 1);
     for (let l = sym.range.start.line; l <= limit; l++) {
         const t = document.lineAt(l).text;
-        if (ABSTRACT_METHOD_REGEX.test(t)) { isAbstract = true; }
-        if (CLASS_METHOD_REGEX.test(t)) { isClassMethod = true; }
-        if (STATIC_METHOD_REGEX.test(t)) { isStaticMethod = true; }
+        if (ABSTRACT_METHOD_REGEX.test(t)) {
+            isAbstract = true;
+        }
+        if (CLASS_METHOD_REGEX.test(t)) {
+            isClassMethod = true;
+        }
+        if (STATIC_METHOD_REGEX.test(t)) {
+            isStaticMethod = true;
+        }
         if (DEF_START_REGEX.test(t)) {
             declText = collectMethodDeclText(l, document);
             break;
@@ -132,7 +145,9 @@ function extractMethod(
         const closeIdx = findMatchingParen(declText, openIdx);
         if (closeIdx >= 0) {
             params = parseParams(declText.slice(openIdx + 1, closeIdx));
-            const retMatch = declText.slice(closeIdx + 1).match(/^\s*->\s*([^:]+?)\s*:/);
+            const retMatch = declText
+                .slice(closeIdx + 1)
+                .match(/^\s*->\s*([^:]+?)\s*:/);
             returnType = retMatch?.[1]?.trim();
         }
     }
@@ -164,7 +179,9 @@ function extractAttribute(
     sym: vscode.DocumentSymbol,
     document: vscode.TextDocument
 ): AttrDef {
-    const firstLine = stripInlineComment(document.lineAt(sym.range.start.line).text);
+    const firstLine = stripInlineComment(
+        document.lineAt(sym.range.start.line).text
+    );
     const match = firstLine.match(ATTR_DECL_REGEX);
 
     const baseIndent = firstLine.match(/^ */)?.[0].length ?? 0;
@@ -268,12 +285,19 @@ async function extractClassFromSymbol(
                 );
                 for (let l = child.range.start.line; l <= scanLimit; l++) {
                     const t = document.lineAt(l).text;
-                    if (PROPERTY_REGEX.test(t)) { isProperty = true; break; }
-                    if (DEF_START_REGEX.test(t)) { break; }
+                    if (PROPERTY_REGEX.test(t)) {
+                        isProperty = true;
+                        break;
+                    }
+                    if (DEF_START_REGEX.test(t)) {
+                        break;
+                    }
                 }
                 if (isProperty) {
                     const prop = extractProperty(child, document);
-                    if (prop) { properties.push(prop); }
+                    if (prop) {
+                        properties.push(prop);
+                    }
                 } else {
                     methods.push(extractMethod(child, document));
                 }
@@ -290,7 +314,9 @@ async function extractClassFromSymbol(
             }
             case vscode.SymbolKind.Property: {
                 const prop = extractProperty(child, document);
-                if (prop) { properties.push(prop); }
+                if (prop) {
+                    properties.push(prop);
+                }
                 break;
             }
             case vscode.SymbolKind.EnumMember: {
@@ -470,18 +496,27 @@ async function loadClassById(id: string): Promise<ClassNode | undefined> {
  */
 function findBasesParenIndex(lineText: string): number {
     const m = lineText.match(/^\s*class\s+\w+/);
-    if (!m) { return -1; }
+    if (!m) {
+        return -1;
+    }
     let i = m[0].length;
-    while (i < lineText.length && lineText[i] === ' ') { i++; }
+    while (i < lineText.length && lineText[i] === ' ') {
+        i++;
+    }
     if (lineText[i] === '[') {
         let depth = 1;
         i++;
         while (i < lineText.length && depth > 0) {
-            if (lineText[i] === '[') { depth++; }
-            else if (lineText[i] === ']') { depth--; }
+            if (lineText[i] === '[') {
+                depth++;
+            } else if (lineText[i] === ']') {
+                depth--;
+            }
             i++;
         }
-        while (i < lineText.length && lineText[i] === ' ') { i++; }
+        while (i < lineText.length && lineText[i] === ' ') {
+            i++;
+        }
     }
     return lineText[i] === '(' ? i : -1;
 }
@@ -529,14 +564,22 @@ async function resolveBases(
     let chunkStart = parenIdx + 1;
     for (let i = parenIdx + 1; i < closeIdx; i++) {
         const ch = flat[i];
-        if (ch === '(' || ch === '[' || ch === '{') { depth++; }
-        else if (ch === ')' || ch === ']' || ch === '}') { depth--; }
-        else if (ch === ',' && depth === 0) {
-            chunks.push({ raw: flat.slice(chunkStart, i), startIdx: chunkStart });
+        if (ch === '(' || ch === '[' || ch === '{') {
+            depth++;
+        } else if (ch === ')' || ch === ']' || ch === '}') {
+            depth--;
+        } else if (ch === ',' && depth === 0) {
+            chunks.push({
+                raw: flat.slice(chunkStart, i),
+                startIdx: chunkStart,
+            });
             chunkStart = i + 1;
         }
     }
-    chunks.push({ raw: flat.slice(chunkStart, closeIdx), startIdx: chunkStart });
+    chunks.push({
+        raw: flat.slice(chunkStart, closeIdx),
+        startIdx: chunkStart,
+    });
 
     return Promise.all(
         chunks
@@ -625,18 +668,32 @@ function findMatchingParen(s: string, openIdx: number): number {
     for (let i = openIdx + 1; i < s.length; i++) {
         const ch = s[i];
         if (inStr !== null) {
-            if (ch === '\\') { i++; continue; }
-            if (s.startsWith(inStr, i)) { i += inStr.length - 1; inStr = null; }
+            if (ch === '\\') {
+                i++;
+                continue;
+            }
+            if (s.startsWith(inStr, i)) {
+                i += inStr.length - 1;
+                inStr = null;
+            }
             continue;
         }
         if (ch === '"' || ch === "'") {
             const triple = s[i + 1] === ch && s[i + 2] === ch;
             inStr = triple ? ch.repeat(3) : ch;
-            if (triple) { i += 2; }
+            if (triple) {
+                i += 2;
+            }
             continue;
         }
-        if (ch === '(') { depth++; }
-        else if (ch === ')') { depth--; if (depth === 0) { return i; } }
+        if (ch === '(') {
+            depth++;
+        } else if (ch === ')') {
+            depth--;
+            if (depth === 0) {
+                return i;
+            }
+        }
     }
     return -1;
 }
@@ -649,22 +706,44 @@ function splitAtFirstEquals(s: string): [string, string | undefined] {
     for (let i = 0; i < s.length; i++) {
         const ch = s[i];
         if (inStr !== null) {
-            if (ch === '\\') { i++; continue; }
-            if (s.startsWith(inStr, i)) { i += inStr.length - 1; inStr = null; }
+            if (ch === '\\') {
+                i++;
+                continue;
+            }
+            if (s.startsWith(inStr, i)) {
+                i += inStr.length - 1;
+                inStr = null;
+            }
             continue;
         }
         if (ch === '"' || ch === "'") {
             const triple = s[i + 1] === ch && s[i + 2] === ch;
             inStr = triple ? ch.repeat(3) : ch;
-            if (triple) { i += 2; }
+            if (triple) {
+                i += 2;
+            }
             continue;
         }
-        if (ch === '(' || ch === '[' || ch === '{') { depth++; continue; }
-        if (ch === ')' || ch === ']' || ch === '}') { depth--; continue; }
+        if (ch === '(' || ch === '[' || ch === '{') {
+            depth++;
+            continue;
+        }
+        if (ch === ')' || ch === ']' || ch === '}') {
+            depth--;
+            continue;
+        }
         if (ch === '=' && depth === 0) {
             const prev = i > 0 ? s[i - 1] : '';
             const next = s[i + 1] ?? '';
-            if (next === '=' || prev === '!' || prev === '<' || prev === '>' || prev === '=') { continue; }
+            if (
+                next === '=' ||
+                prev === '!' ||
+                prev === '<' ||
+                prev === '>' ||
+                prev === '='
+            ) {
+                continue;
+            }
             return [s.slice(0, i).trimEnd(), s.slice(i + 1).trimStart()];
         }
     }

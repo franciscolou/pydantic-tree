@@ -224,10 +224,7 @@ function isNameImported(text: string, name: string): boolean {
         }
         if (trimmed.startsWith('"""') || trimmed.startsWith("'''")) {
             quote = trimmed.slice(0, 3);
-            if (
-                trimmed.length > 3 &&
-                trimmed.slice(3).includes(quote)
-            ) {
+            if (trimmed.length > 3 && trimmed.slice(3).includes(quote)) {
                 continue;
             }
             inDocstring = true;
@@ -266,10 +263,7 @@ function findImportInsertionLine(doc: vscode.TextDocument): number {
         }
         if (trimmed.startsWith('"""') || trimmed.startsWith("'''")) {
             quote = trimmed.slice(0, 3);
-            if (
-                trimmed.length > 3 &&
-                trimmed.slice(3).includes(quote)
-            ) {
+            if (trimmed.length > 3 && trimmed.slice(3).includes(quote)) {
                 continue;
             }
             inDocstring = true;

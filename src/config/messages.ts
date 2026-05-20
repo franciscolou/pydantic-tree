@@ -1,7 +1,10 @@
 export const Messages = {
-    noClassUnderCursor: 'No class found under cursor.',
-    noClassesFound: 'No Python classes found in the workspace.',
-
+    errors: {
+        noClassUnderCursor: 'No class found under cursor.',
+        noClassesFound: 'No Python classes found in the workspace.',
+        pylanceRequired:
+            'PyTree could not query the Python type hierarchy because Pylance extension must be installed and active to show subclasses.',
+    },
     hover: {
         labels: {
             showClassTree: 'Show Class Tree',
@@ -49,10 +52,8 @@ export const Messages = {
         confirmApply: 'Apply',
         conflictTitle: (child: string, newParent: string) =>
             `Changing ${child}'s parent to ${newParent} introduces conflicts:`,
-        conflictAttrs: (names: string[]) =>
-            `Attributes: ${names.join(', ')}`,
-        conflictMethods: (names: string[]) =>
-            `Methods: ${names.join(', ')}`,
+        conflictAttrs: (names: string[]) => `Attributes: ${names.join(', ')}`,
+        conflictMethods: (names: string[]) => `Methods: ${names.join(', ')}`,
         conflictFooter:
             'Apply anyway? You can resolve the conflicts manually in the source file afterwards.',
         applyAnyway: 'Apply Anyway',

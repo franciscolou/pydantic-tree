@@ -11,7 +11,8 @@ import { initCache } from './utils/scan';
 import { setWorkspaceUri } from './ui/render/classBox';
 
 export function activate(context: vscode.ExtensionContext) {
-    const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri.toString() ?? '';
+    const workspaceUri =
+        vscode.workspace.workspaceFolders?.[0]?.uri.toString() ?? '';
     setWorkspaceUri(workspaceUri);
     initCache(context);
     context.subscriptions.push(

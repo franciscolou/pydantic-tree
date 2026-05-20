@@ -74,7 +74,9 @@ async function handleExport(msg: {
             filters: { 'SVG Images': ['svg'] },
             saveLabel: 'Export',
         });
-        if (!uri) { return; }
+        if (!uri) {
+            return;
+        }
         await vscode.workspace.fs.writeFile(
             uri,
             Buffer.from(msg.svgContent!, 'utf-8')
@@ -86,7 +88,9 @@ async function handleExport(msg: {
         filters: { 'HTML Files': ['html'] },
         saveLabel: 'Export',
     });
-    if (!uri) { return; }
+    if (!uri) {
+        return;
+    }
 
     const html = `<!DOCTYPE html>
 <html>
@@ -106,10 +110,7 @@ ${msg.svgContent}
     await vscode.workspace.fs.writeFile(uri, Buffer.from(html, 'utf-8'));
 }
 
-async function handleNavigate(
-    fileUri: string,
-    line: number
-): Promise<void> {
+async function handleNavigate(fileUri: string, line: number): Promise<void> {
     const uri = vscode.Uri.parse(fileUri);
     const pos = new vscode.Position(line, 0);
     const existingEditor = vscode.window.visibleTextEditors.find(
@@ -169,15 +170,16 @@ async function handleChangeInheritance(
     }
 
     if (oldParent.id === newParent.id) {
-        vscode.window.showInformationMessage(
-            Messages.inheritance.sameParent
-        );
+        vscode.window.showInformationMessage(Messages.inheritance.sameParent);
         return;
     }
 
     if (detectAlreadyInherits(child, oldParentId, newParentId, classes)) {
         vscode.window.showErrorMessage(
-            Messages.inheritance.alreadyInheritsError(child.name, newParent.name)
+            Messages.inheritance.alreadyInheritsError(
+                child.name,
+                newParent.name
+            )
         );
         return;
     }
@@ -189,12 +191,7 @@ async function handleChangeInheritance(
         return;
     }
 
-    const conflicts = detectConflicts(
-        child,
-        oldParentId,
-        newParentId,
-        classes
-    );
+    const conflicts = detectConflicts(child, oldParentId, newParentId, classes);
     if (conflicts.attrs.length || conflicts.methods.length) {
         const lines: string[] = [
             Messages.inheritance.conflictTitle(child.name, newParent.name),

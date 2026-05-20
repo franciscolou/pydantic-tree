@@ -87,7 +87,9 @@ export function buildConnectedComponents(
     }
 
     return [...groups.values()].sort((a, b) => {
-        if (b.length !== a.length) { return b.length - a.length; }
+        if (b.length !== a.length) {
+            return b.length - a.length;
+        }
         const minId = (arr: ClassNode[]) =>
             arr.reduce((m, n) => (n.id < m ? n.id : m), arr[0].id);
         return minId(a).localeCompare(minId(b));

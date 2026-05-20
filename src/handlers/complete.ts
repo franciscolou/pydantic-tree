@@ -4,7 +4,10 @@ import { resolveClassNode, resolveLayeredNodes } from '../utils/resolve';
 import { collectAncestors, collectDescendants } from '../ui/utils/resolve';
 import { Messages } from '../config';
 import { buildInheritanceMap } from '../utils/parser';
-import { scanWorkspaceClasses } from '../utils/scan';
+import {
+    collectSubtypesIntoClasses,
+    prepareTypeHierarchyAt,
+} from '../utils/typeHierarchy';
 import { renderClassTree } from '../ui/render/trees/single';
 import { ClassRef } from '../types';
 
@@ -23,12 +26,7 @@ export async function showCompleteClassTree(
         line: focusNode.definedAtLine,
     };
 
-    const computeState = async (
-        progress?: vscode.Progress<{
-            message?: string;
-            increment?: number;
-        }>
-    ): Promise<PanelState | null> => {
+    const computeState = async (): Promise<PanelState | null> => {
         const node = await resolveClassNode(focusRef);
         if (!node) {
             return null;
@@ -37,12 +35,12 @@ export async function showCompleteClassTree(
             vscode.Uri.parse(node.fileUri)
         );
         const classes = await buildInheritanceMap(node.id, document);
-        const allClasses = await scanWorkspaceClasses(progress);
-        for (const [id, n] of allClasses) {
-            if (!classes.has(id)) {
-                classes.set(id, n);
-            }
+        const rootItem = await prepareTypeHierarchyAt(node);
+        if (!rootItem) {
+            vscode.window.showInformationMessage(Messages.pylanceRequired);
+            return null;
         }
+        await collectSubtypesIntoClasses(rootItem, classes);
         const ancestors = resolveLayeredNodes(
             collectAncestors(node.id, classes),
             classes
@@ -61,30 +59,18 @@ export async function showCompleteClassTree(
         };
     };
 
-    let state: PanelState | null = null;
-    await vscode.window.withProgress(
-        {
-            location: vscode.ProgressLocation.Notification,
-            title: Messages.status.scanningFiles,
-            cancellable: false,
-        },
-        async progress => {
-            state = await computeState(progress);
-        }
-    );
-
+    const state = await computeState();
     if (!state) {
         return;
     }
-    const finalState: PanelState = state;
 
     await openWebview(
         context,
         'pytreeClassTree',
         Messages.webView.titles.completeClassTree(focusNode.name),
-        finalState.html,
-        finalState.fileUris,
+        state.html,
+        state.fileUris,
         'complete:' + focusNode.id,
-        () => computeState()
+        computeState
     );
 }

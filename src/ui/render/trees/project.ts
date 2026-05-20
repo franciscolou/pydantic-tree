@@ -112,7 +112,9 @@ function centerFirstGridPositions(
 
     positions.sort((a, b) => {
         const dd = a.dist - b.dist;
-        if (Math.abs(dd) > 1e-9) { return dd; }
+        if (Math.abs(dd) > 1e-9) {
+            return dd;
+        }
         return a.row !== b.row ? a.row - b.row : a.col - b.col;
     });
 

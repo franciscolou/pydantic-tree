@@ -12,7 +12,10 @@ export function hollowArrow(x: number, y: number, color: string): string {
 }
 
 function escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
 }
 
 // Interactive arrow: emits an enlarged transparent hit area plus the visible
@@ -30,9 +33,10 @@ function interactiveHollowArrow(
     const pad = 6;
     const hitArea = `<polygon points="${x},${y - pad} ${x - ARROW_W / 2 - pad},${y + ARROW_H + pad} ${x + ARROW_W / 2 + pad},${y + ARROW_H + pad}" fill="transparent" stroke="none"/>`;
     const arrow = hollowArrow(x, y, color);
-    const nameAttrs = childName && parentName
-        ? ` data-pt-edge-child-name="${escapeAttr(childName)}" data-pt-edge-parent-name="${escapeAttr(parentName)}"`
-        : '';
+    const nameAttrs =
+        childName && parentName
+            ? ` data-pt-edge-child-name="${escapeAttr(childName)}" data-pt-edge-parent-name="${escapeAttr(parentName)}"`
+            : '';
     return `<g data-pt-edge="1" data-pt-edge-child="${escapeAttr(childId)}" data-pt-edge-parent="${escapeAttr(parentId)}"${nameAttrs} style="cursor: grab">${hitArea}${arrow}</g>`;
 }
 
@@ -276,14 +280,29 @@ export function drawConnections(
 
     let svg = '';
     connections.forEach((conn, i) => {
-        const { parentBottom, childTop, parentId, childId, parentName, childName } = conn;
+        const {
+            parentBottom,
+            childTop,
+            parentId,
+            childId,
+            parentName,
+            childName,
+        } = conn;
         const edgeY = edgeYs[i];
         const color = palette[colorIndices[i] % palette.length];
         const pX = parentAttachXs[i];
         const cX = childAttachXs[i];
         svg +=
             parentId && childId
-                ? interactiveHollowArrow(pX, parentBottom, color, childId, parentId, childName, parentName)
+                ? interactiveHollowArrow(
+                      pX,
+                      parentBottom,
+                      color,
+                      childId,
+                      parentId,
+                      childName,
+                      parentName
+                  )
                 : hollowArrow(pX, parentBottom, color);
         svg += Line({
             x1: pX,
@@ -495,7 +514,15 @@ export function renderLayeredEdges(
         const sX = sideXs[n];
         const color = palette[laneIdx[n] % palette.length];
 
-        edges += interactiveHollowArrow(pX, c.parentBottom, color, c.childId, c.parentId, c.childName, c.parentName);
+        edges += interactiveHollowArrow(
+            pX,
+            c.parentBottom,
+            color,
+            c.childId,
+            c.parentId,
+            c.childName,
+            c.parentName
+        );
         edges += Line({
             x1: pX,
             y1: c.parentBottom + ARROW_H,
