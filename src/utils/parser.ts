@@ -6,6 +6,7 @@ import type {
     AttrDef,
     PropDef,
     BaseRef,
+    DecoratorScan,
 } from '../types';
 
 /* =========================================================
@@ -109,31 +110,49 @@ function collectMethodDeclText(
     return parts.join(' ');
 }
 
-function extractMethod(
-    sym: vscode.DocumentSymbol,
+function scanDecorators(
+    startLine: number,
     document: vscode.TextDocument
-): MethodDef {
-    let declText = '';
-    let isAbstract = false;
-    let isClassMethod = false;
-    let isStaticMethod = false;
-    const limit = Math.min(sym.range.start.line + 10, document.lineCount - 1);
-    for (let l = sym.range.start.line; l <= limit; l++) {
+): DecoratorScan {
+    const result: DecoratorScan = {
+        defLine: undefined,
+        isProperty: false,
+        isAbstract: false,
+        isClassMethod: false,
+        isStaticMethod: false,
+    };
+    const limit = Math.min(startLine + 10, document.lineCount - 1);
+    for (let l = startLine; l <= limit; l++) {
         const t = document.lineAt(l).text;
+        if (PROPERTY_REGEX.test(t)) {
+            result.isProperty = true;
+        }
         if (ABSTRACT_METHOD_REGEX.test(t)) {
-            isAbstract = true;
+            result.isAbstract = true;
         }
         if (CLASS_METHOD_REGEX.test(t)) {
-            isClassMethod = true;
+            result.isClassMethod = true;
         }
         if (STATIC_METHOD_REGEX.test(t)) {
-            isStaticMethod = true;
+            result.isStaticMethod = true;
         }
         if (DEF_START_REGEX.test(t)) {
-            declText = collectMethodDeclText(l, document);
+            result.defLine = l;
             break;
         }
     }
+    return result;
+}
+
+function extractMethod(
+    sym: vscode.DocumentSymbol,
+    document: vscode.TextDocument,
+    scan: DecoratorScan
+): MethodDef {
+    const declText =
+        scan.defLine !== undefined
+            ? collectMethodDeclText(scan.defLine, document)
+            : '';
 
     // Bracket-aware extraction: METHOD_DECL_REGEX uses [^)]* which stops at
     // the first ')' and misses params whose defaults contain calls like dict().
@@ -157,9 +176,9 @@ function extractMethod(
         params,
         returnType,
         definedAtLine: sym.range.start.line,
-        isAbstract: isAbstract || undefined,
-        isClassMethod: isClassMethod || undefined,
-        isStaticMethod: isStaticMethod || undefined,
+        isAbstract: scan.isAbstract || undefined,
+        isClassMethod: scan.isClassMethod || undefined,
+        isStaticMethod: scan.isStaticMethod || undefined,
     };
 }
 
@@ -214,22 +233,19 @@ function extractAttribute(
 
 function extractProperty(
     sym: vscode.DocumentSymbol,
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
+    scan: DecoratorScan
 ): PropDef | undefined {
-    const limit = Math.min(sym.range.start.line + 10, document.lineCount - 1);
-    for (let l = sym.range.start.line; l <= limit; l++) {
-        const t = document.lineAt(l).text;
-        if (DEF_START_REGEX.test(t)) {
-            const declText = collectMethodDeclText(l, document);
-            const match = declText.match(METHOD_DECL_REGEX);
-            return {
-                name: sym.name,
-                returnType: match?.[3]?.trim() || undefined,
-                definedAtLine: sym.range.start.line,
-            };
-        }
+    if (scan.defLine === undefined) {
+        return undefined;
     }
-    return undefined;
+    const declText = collectMethodDeclText(scan.defLine, document);
+    const match = declText.match(METHOD_DECL_REGEX);
+    return {
+        name: sym.name,
+        returnType: match?.[3]?.trim() || undefined,
+        definedAtLine: sym.range.start.line,
+    };
 }
 
 function collectClassDeclLines(
@@ -273,65 +289,61 @@ async function extractClassFromSymbol(
     const attributes: AttrDef[] = [];
     const properties: PropDef[] = [];
 
+    const tryPushAttr = (child: vscode.DocumentSymbol): boolean => {
+        const lineText = document.lineAt(child.range.start.line).text;
+        if (ATTR_DECL_REGEX.test(lineText)) {
+            attributes.push(extractAttribute(child, document));
+            return true;
+        }
+        return false;
+    };
+
+    const pushProperty = (
+        child: vscode.DocumentSymbol,
+        scan: DecoratorScan
+    ): void => {
+        const prop = extractProperty(child, document, scan);
+        if (prop) {
+            properties.push(prop);
+        }
+    };
+
     for (const child of sym.children) {
         switch (child.kind) {
             case vscode.SymbolKind.Method:
             case vscode.SymbolKind.Function:
             case vscode.SymbolKind.Constructor: {
-                let isProperty = false;
-                const scanLimit = Math.min(
-                    child.range.start.line + 10,
-                    document.lineCount - 1
-                );
-                for (let l = child.range.start.line; l <= scanLimit; l++) {
-                    const t = document.lineAt(l).text;
-                    if (PROPERTY_REGEX.test(t)) {
-                        isProperty = true;
-                        break;
-                    }
-                    if (DEF_START_REGEX.test(t)) {
-                        break;
-                    }
-                }
-                if (isProperty) {
-                    const prop = extractProperty(child, document);
-                    if (prop) {
-                        properties.push(prop);
-                    }
+                const scan = scanDecorators(child.range.start.line, document);
+                if (scan.isProperty) {
+                    pushProperty(child, scan);
                 } else {
-                    methods.push(extractMethod(child, document));
+                    methods.push(extractMethod(child, document, scan));
                 }
                 break;
             }
             case vscode.SymbolKind.Variable:
             case vscode.SymbolKind.Field:
             case vscode.SymbolKind.Constant: {
-                const lineText = document.lineAt(child.range.start.line).text;
-                if (ATTR_DECL_REGEX.test(lineText)) {
-                    attributes.push(extractAttribute(child, document));
-                }
+                tryPushAttr(child);
                 break;
             }
             case vscode.SymbolKind.Property: {
-                const prop = extractProperty(child, document);
-                if (prop) {
-                    properties.push(prop);
-                }
+                const scan = scanDecorators(child.range.start.line, document);
+                pushProperty(child, scan);
                 break;
             }
             case vscode.SymbolKind.EnumMember: {
+                if (tryPushAttr(child)) {
+                    break;
+                }
                 const lineText = document.lineAt(child.range.start.line).text;
-                if (ATTR_DECL_REGEX.test(lineText)) {
-                    attributes.push(extractAttribute(child, document));
-                } else {
-                    const m = lineText.match(ENUM_MEMBER_REGEX);
-                    if (m) {
-                        attributes.push({
-                            name: m[1],
-                            defaultValue: m[2].trim(),
-                            definedAtLine: child.range.start.line,
-                        });
-                    }
+                const m = lineText.match(ENUM_MEMBER_REGEX);
+                if (m) {
+                    attributes.push({
+                        name: m[1],
+                        defaultValue: m[2].trim(),
+                        definedAtLine: child.range.start.line,
+                    });
                 }
                 break;
             }

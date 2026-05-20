@@ -44,7 +44,7 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
     );
 
     if (!allClasses.size) {
-        vscode.window.showInformationMessage(Messages.noClassesFound);
+        vscode.window.showInformationMessage(Messages.errors.noClassesFound);
         return;
     }
 
@@ -103,7 +103,7 @@ export async function showPickClassesTree(context: vscode.ExtensionContext) {
 
     const state = await computeState();
     if (!state) {
-        vscode.window.showInformationMessage(Messages.noClassesFound);
+        vscode.window.showInformationMessage(Messages.errors.noClassesFound);
         return;
     }
     const extraKey = [

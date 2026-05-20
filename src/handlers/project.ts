@@ -46,7 +46,7 @@ export async function showProjectTree(context: vscode.ExtensionContext) {
     );
 
     if (!state) {
-        vscode.window.showInformationMessage(Messages.noClassesFound);
+        vscode.window.showInformationMessage(Messages.errors.noClassesFound);
         return;
     }
     const finalState: PanelState = state;

@@ -13,7 +13,7 @@ export async function showClassTree(
 ) {
     const focusNode = await resolveClassNode(ref);
     if (!focusNode) {
-        vscode.window.showInformationMessage(Messages.noClassUnderCursor);
+        vscode.window.showInformationMessage(Messages.errors.noClassUnderCursor);
         return;
     }
 
@@ -47,7 +47,7 @@ export async function showClassTree(
 
     const state = await computeState();
     if (!state) {
-        vscode.window.showInformationMessage(Messages.noClassUnderCursor);
+        vscode.window.showInformationMessage(Messages.errors.noClassUnderCursor);
         return;
     }
 

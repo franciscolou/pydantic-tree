@@ -17,7 +17,7 @@ export async function showCompleteClassTree(
 ) {
     const focusNode = await resolveClassNode(ref);
     if (!focusNode) {
-        vscode.window.showInformationMessage(Messages.noClassUnderCursor);
+        vscode.window.showInformationMessage(Messages.errors.noClassUnderCursor);
         return;
     }
 
@@ -37,7 +37,7 @@ export async function showCompleteClassTree(
         const classes = await buildInheritanceMap(node.id, document);
         const rootItem = await prepareTypeHierarchyAt(node);
         if (!rootItem) {
-            vscode.window.showInformationMessage(Messages.pylanceRequired);
+            vscode.window.showInformationMessage(Messages.errors.pylanceRequired);
             return null;
         }
         await collectSubtypesIntoClasses(rootItem, classes);

@@ -31,3 +31,11 @@ export interface BaseRef {
     name: string;
     id?: string;
 }
+
+export type DecoratorScan = {
+    defLine: number | undefined;
+    isProperty: boolean;
+    isAbstract: boolean;
+    isClassMethod: boolean;
+    isStaticMethod: boolean;
+};
