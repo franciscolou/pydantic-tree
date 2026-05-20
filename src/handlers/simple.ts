@@ -1,8 +1,11 @@
 import * as vscode from 'vscode';
-import { resolveClassNode, resolveLayeredNodes } from '../utils/resolve';
+import { resolveClassNode } from '../utils/resolve';
 import { ClassRef } from '../types';
-import { buildInheritanceMap } from '../utils/parser';
-import { collectAncestors } from '../ui/utils/resolve';
+import { extractClasses } from '../utils/parser';
+import {
+    buildAncestorLayers,
+    prepareTypeHierarchyAt,
+} from '../utils/typeHierarchy';
 import { openWebview, PanelState } from '../utils/webview';
 import { Messages } from '../config';
 import { renderClassTree } from '../ui/render/trees/single';
@@ -30,11 +33,13 @@ export async function showClassTree(
         const document = await vscode.workspace.openTextDocument(
             vscode.Uri.parse(node.fileUri)
         );
-        const classes = await buildInheritanceMap(node.id, document);
-        const ancestors = resolveLayeredNodes(
-            collectAncestors(node.id, classes),
-            classes
-        );
+        const classes = await extractClasses(document);
+        const rootItem = await prepareTypeHierarchyAt(node);
+        if (!rootItem) {
+            vscode.window.showInformationMessage(Messages.errors.pylanceRequired);
+            return null;
+        }
+        const ancestors = await buildAncestorLayers(rootItem, node, classes);
         const fileUris = [
             ...new Set([...classes.values()].map(n => n.fileUri)),
         ];
@@ -47,7 +52,6 @@ export async function showClassTree(
 
     const state = await computeState();
     if (!state) {
-        vscode.window.showInformationMessage(Messages.errors.noClassUnderCursor);
         return;
     }
 

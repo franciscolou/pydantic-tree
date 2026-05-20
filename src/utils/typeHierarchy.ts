@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ClassNode } from '../types';
 import { extractClasses } from './parser';
+import { layerByLongestPath } from '../ui/utils/resolve';
 
 const EXCLUDED_DIR =
     /[\/\\](\.venv|venv|node_modules|__pycache__|\.git|site-packages)[\/\\]/;
@@ -16,21 +17,37 @@ function itemKey(item: vscode.TypeHierarchyItem): string {
     return `${item.uri.toString()}#${item.selectionRange.start.line}`;
 }
 
+// Scans forward from startLine to find the line where `class <name>` appears,
+// handling decorators that precede the actual class declaration.
+function findClassPosition(
+    doc: vscode.TextDocument,
+    startLine: number,
+    className: string
+): vscode.Position | undefined {
+    const limit = Math.min(startLine + 10, doc.lineCount);
+    for (let l = startLine; l < limit; l++) {
+        const text = doc.lineAt(l).text;
+        const classIdx = text.indexOf('class');
+        if (classIdx < 0) {
+            continue;
+        }
+        const nameIdx = text.indexOf(className, classIdx + 5);
+        if (nameIdx >= 0) {
+            return new vscode.Position(l, nameIdx);
+        }
+    }
+    return undefined;
+}
+
 export async function prepareTypeHierarchyAt(
     node: ClassNode
 ): Promise<vscode.TypeHierarchyItem | undefined> {
     const uri = vscode.Uri.parse(node.fileUri);
     const doc = await vscode.workspace.openTextDocument(uri);
-    const lineText = doc.lineAt(node.definedAtLine).text;
-    const classKwIdx = lineText.indexOf('class');
-    const nameIdx = lineText.indexOf(
-        node.name,
-        classKwIdx >= 0 ? classKwIdx : 0
-    );
-    if (nameIdx < 0) {
+    const pos = findClassPosition(doc, node.definedAtLine, node.name);
+    if (!pos) {
         return undefined;
     }
-    const pos = new vscode.Position(node.definedAtLine, nameIdx);
 
     const items = await vscode.commands.executeCommand<
         vscode.TypeHierarchyItem[]
@@ -41,41 +58,70 @@ export async function prepareTypeHierarchyAt(
     return items.find(it => it.name === node.name) ?? items[0];
 }
 
-export async function collectSubtypesIntoClasses(
+// BFS that traverses the type hierarchy in one direction, tracking structure.
+// Returns:
+//   items   — all visited nodes (including root), keyed by itemKey
+//   edges   — adjacency in traversal direction (from → to), keyed by itemKey
+//   fileUris — URIs of non-root items that passed the filter
+async function bfsTypeHierarchy(
     rootItem: vscode.TypeHierarchyItem,
-    classes: Map<string, ClassNode>
-): Promise<void> {
-    const seen = new Set<string>([itemKey(rootItem)]);
+    command: 'vscode.provideSubtypes' | 'vscode.provideSupertypes',
+    filterUri: (uri: vscode.Uri) => boolean
+): Promise<{
+    items: Map<string, vscode.TypeHierarchyItem>;
+    edges: Map<string, string[]>;
+    fileUris: Set<string>;
+}> {
+    const items = new Map<string, vscode.TypeHierarchyItem>();
+    const edges = new Map<string, string[]>();
     const fileUris = new Set<string>();
 
-    let frontier: vscode.TypeHierarchyItem[] = [rootItem];
+    const rootKey = itemKey(rootItem);
+    items.set(rootKey, rootItem);
+
+    let frontier = [rootItem];
     while (frontier.length > 0) {
         const results = await Promise.all(
             frontier.map(it =>
                 vscode.commands.executeCommand<vscode.TypeHierarchyItem[]>(
-                    'vscode.provideSubtypes',
+                    command,
                     it
                 )
             )
         );
         const next: vscode.TypeHierarchyItem[] = [];
-        for (const subs of results) {
-            for (const sub of subs ?? []) {
-                if (!isWorkspaceFile(sub.uri)) {
+        for (let i = 0; i < frontier.length; i++) {
+            const fromKey = itemKey(frontier[i]);
+            const neighbours: string[] = [];
+            for (const nb of results[i] ?? []) {
+                if (!filterUri(nb.uri)) {
                     continue;
                 }
-                const key = itemKey(sub);
-                if (seen.has(key)) {
-                    continue;
+                const key = itemKey(nb);
+                neighbours.push(key);
+                if (!items.has(key)) {
+                    items.set(key, nb);
+                    fileUris.add(nb.uri.toString());
+                    next.push(nb);
                 }
-                seen.add(key);
-                fileUris.add(sub.uri.toString());
-                next.push(sub);
             }
+            edges.set(fromKey, neighbours);
         }
         frontier = next;
     }
 
+    return { items, edges, fileUris };
+}
+
+// Extracts ClassNodes from the given file URIs into `classes`.
+// Returns a secondary lookup keyed by "uriStr#className" for decorator-safe
+// matching against TypeHierarchyItems (whose selectionRange.start.line may
+// differ from ClassNode.definedAtLine when decorators are present).
+async function extractIntoClasses(
+    fileUris: Set<string>,
+    classes: Map<string, ClassNode>
+): Promise<Map<string, ClassNode>> {
+    const byUriName = new Map<string, ClassNode>();
     for (const uriStr of fileUris) {
         try {
             const doc = await vscode.workspace.openTextDocument(
@@ -86,9 +132,97 @@ export async function collectSubtypesIntoClasses(
                 if (!classes.has(id)) {
                     classes.set(id, n);
                 }
+                byUriName.set(`${uriStr}#${n.name}`, n);
             }
         } catch {
             // skip unreadable files
         }
     }
+    return byUriName;
+}
+
+// Converts the BFS result into ClassNode[][] using longestPathLayers on the
+// recorded edges. The focusNode is mapped to the root key directly.
+function buildLayersFromBfs(
+    rootKey: string,
+    items: Map<string, vscode.TypeHierarchyItem>,
+    edges: Map<string, string[]>,
+    byUriName: Map<string, ClassNode>,
+    focusNode: ClassNode
+): ClassNode[][] {
+    const relatedKeys = new Set(
+        [...items.keys()].filter(k => k !== rootKey)
+    );
+    if (relatedKeys.size === 0) {
+        return [];
+    }
+
+    const keyToNode = new Map<string, ClassNode>([[rootKey, focusNode]]);
+    for (const [key, item] of items) {
+        if (key === rootKey) {
+            continue;
+        }
+        const n = byUriName.get(`${item.uri.toString()}#${item.name}`);
+        if (n) {
+            keyToNode.set(key, n);
+        }
+    }
+
+    const layers = layerByLongestPath(
+        rootKey,
+        relatedKeys,
+        id => edges.get(id) ?? []
+    );
+
+    return layers.map(layer =>
+        layer
+            .map(k => keyToNode.get(k))
+            .filter((n): n is ClassNode => n !== undefined)
+    );
+}
+
+// Walks supertypes via Pylance, populates `classes` with ancestor ClassNodes,
+// and returns them as longest-path layers (layer 0 = direct parents).
+// Supertypes are not workspace-filtered — ancestors can live in stdlib or
+// third-party libs, matching the previous buildInheritanceMap behaviour.
+export async function buildAncestorLayers(
+    rootItem: vscode.TypeHierarchyItem,
+    focusNode: ClassNode,
+    classes: Map<string, ClassNode>
+): Promise<ClassNode[][]> {
+    const { items, edges, fileUris } = await bfsTypeHierarchy(
+        rootItem,
+        'vscode.provideSupertypes',
+        () => true
+    );
+    const byUriName = await extractIntoClasses(fileUris, classes);
+    return buildLayersFromBfs(
+        itemKey(rootItem),
+        items,
+        edges,
+        byUriName,
+        focusNode
+    );
+}
+
+// Walks subtypes via Pylance (workspace files only), populates `classes` with
+// descendant ClassNodes, and returns them as longest-path layers.
+export async function buildDescendantLayers(
+    rootItem: vscode.TypeHierarchyItem,
+    focusNode: ClassNode,
+    classes: Map<string, ClassNode>
+): Promise<ClassNode[][]> {
+    const { items, edges, fileUris } = await bfsTypeHierarchy(
+        rootItem,
+        'vscode.provideSubtypes',
+        isWorkspaceFile
+    );
+    const byUriName = await extractIntoClasses(fileUris, classes);
+    return buildLayersFromBfs(
+        itemKey(rootItem),
+        items,
+        edges,
+        byUriName,
+        focusNode
+    );
 }

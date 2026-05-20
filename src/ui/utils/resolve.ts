@@ -140,7 +140,7 @@ export function buildComponentLayers(component: ClassNode[]): ClassNode[][] {
 // Runs longest-path layering on `related` nodes (relative to `focusId` at depth 0).
 // `edgesOf(id)` must return the subgraph neighbours that depth should propagate to.
 // Returns layers[0] = nodes at depth 1, layers[1] = nodes at depth 2, etc.
-function layerByLongestPath(
+export function layerByLongestPath(
     focusId: string,
     related: Set<string>,
     edgesOf: (id: string) => string[]

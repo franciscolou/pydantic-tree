@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { openWebview, PanelState } from '../utils/webview';
-import { resolveClassNode, resolveLayeredNodes } from '../utils/resolve';
-import { collectAncestors, collectDescendants } from '../ui/utils/resolve';
+import { resolveClassNode } from '../utils/resolve';
 import { Messages } from '../config';
-import { buildInheritanceMap } from '../utils/parser';
+import { extractClasses } from '../utils/parser';
 import {
-    collectSubtypesIntoClasses,
+    buildAncestorLayers,
+    buildDescendantLayers,
     prepareTypeHierarchyAt,
 } from '../utils/typeHierarchy';
 import { renderClassTree } from '../ui/render/trees/single';
@@ -34,21 +34,16 @@ export async function showCompleteClassTree(
         const document = await vscode.workspace.openTextDocument(
             vscode.Uri.parse(node.fileUri)
         );
-        const classes = await buildInheritanceMap(node.id, document);
+        const classes = await extractClasses(document);
         const rootItem = await prepareTypeHierarchyAt(node);
         if (!rootItem) {
             vscode.window.showInformationMessage(Messages.errors.pylanceRequired);
             return null;
         }
-        await collectSubtypesIntoClasses(rootItem, classes);
-        const ancestors = resolveLayeredNodes(
-            collectAncestors(node.id, classes),
-            classes
-        );
-        const descendants = resolveLayeredNodes(
-            collectDescendants(node.id, classes),
-            classes
-        );
+        const [ancestors, descendants] = await Promise.all([
+            buildAncestorLayers(rootItem, node, classes),
+            buildDescendantLayers(rootItem, node, classes),
+        ]);
         const fileUris = [
             ...new Set([...classes.values()].map(n => n.fileUri)),
         ];
