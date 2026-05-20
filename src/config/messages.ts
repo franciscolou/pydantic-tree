@@ -23,6 +23,8 @@ export const Messages = {
                 `PyTree: ${name} Complete Inheritance`,
             projectTree: 'PyTree: Project Tree',
             pickedClassesTree: 'PyTree: Picked Classes',
+            pickedPathsTree: 'PyTree: Picked Paths',
+            allExceptTree: 'PyTree: All Except',
         },
         options: {
             showAllFilePaths: 'Show all file paths',
@@ -77,6 +79,58 @@ export const Messages = {
                     title: 'Complete Tree',
                     description: 'Ancestors and descendants',
                 },
+            },
+        },
+        pickPaths: {
+            labels: {
+                placeholder: 'Select tree type',
+
+                simpleTree: {
+                    title: 'Simple Tree',
+                    description:
+                        'Classes in selected paths plus their ancestors',
+                },
+                completeTree: {
+                    title: 'Complete Tree',
+                    description:
+                        'Classes in selected paths plus ancestors and descendants',
+                },
+            },
+            picker: {
+                title: 'Pick files/folders to include',
+                placeholder:
+                    'Toggle items with Space — pick one or more files/folders, then press Enter',
+            },
+            errors: {
+                noClassesInPaths:
+                    'No Python classes found in the selected paths.',
+                noneSelected: 'No paths selected.',
+            },
+        },
+        allExcept: {
+            labels: {
+                placeholder: 'Select tree type',
+
+                simpleTree: {
+                    title: 'Simple Tree',
+                    description:
+                        'All classes outside selected paths plus their ancestors',
+                },
+                completeTree: {
+                    title: 'Complete Tree',
+                    description:
+                        'All classes outside selected paths plus ancestors and descendants',
+                },
+            },
+            picker: {
+                title: 'Pick files/folders to exclude',
+                placeholder:
+                    'Toggle items with Space — pick one or more files/folders, then press Enter',
+            },
+            errors: {
+                noClassesAfterExclude:
+                    'No Python classes remain after excluding the selected paths.',
+                noneSelected: 'No paths selected.',
             },
         },
     },

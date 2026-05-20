@@ -1,5 +1,6 @@
 import { Theme, UI } from '../../config';
 import { FindBar, WebViewOptions } from '../components';
+import type { FilterInfo } from '../components/WebViewOptions';
 
 export function renderBaseStyles(): string {
     return `<style>
@@ -32,7 +33,11 @@ export function renderBaseStyles(): string {
 }
 
 export function renderViewportScript(
-    opts: { initialScale?: number; focusNodeId?: string } = {}
+    opts: {
+        initialScale?: number;
+        focusNodeId?: string;
+        filterInfo?: FilterInfo;
+    } = {}
 ): string {
     const initialScale = opts.initialScale ?? 1;
     const initialBboxScript = opts.focusNodeId
@@ -78,7 +83,7 @@ export function renderViewportScript(
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
   }
 </style>
-${WebViewOptions()}
+${WebViewOptions(opts.filterInfo)}
 ${FindBar()}
 <div id="edge-tooltip"></div>
 <div id="nav-tooltip">Go to definition</div>

@@ -5,6 +5,8 @@ import {
     showCompleteClassTree,
     showProjectTree,
     showPickClassesTree,
+    showPickPathsTree,
+    showAllExceptTree,
 } from './handlers';
 import { HoverProvider } from './providers/hover';
 import { initCache } from './utils/scan';
@@ -20,7 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
         registerShowClassCommand(context),
         registerShowCompleteClassCommand(context),
         registerShowProjectTreeCommand(context),
-        registerPickClassesCommand(context)
+        registerPickClassesCommand(context),
+        registerPickPathsCommand(context),
+        registerAllExceptCommand(context)
     );
 }
 
@@ -61,5 +65,21 @@ function registerPickClassesCommand(
 ): vscode.Disposable {
     return vscode.commands.registerCommand('pytree.pickClasses', () =>
         showPickClassesTree(context)
+    );
+}
+
+function registerPickPathsCommand(
+    context: vscode.ExtensionContext
+): vscode.Disposable {
+    return vscode.commands.registerCommand('pytree.pickPaths', () =>
+        showPickPathsTree(context)
+    );
+}
+
+function registerAllExceptCommand(
+    context: vscode.ExtensionContext
+): vscode.Disposable {
+    return vscode.commands.registerCommand('pytree.allExcept', () =>
+        showAllExceptTree(context)
     );
 }

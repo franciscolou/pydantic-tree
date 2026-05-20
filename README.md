@@ -55,6 +55,26 @@ Lets you hand-pick one or more classes from a searchable list and render them si
 
 ---
 
+### Pick Paths
+
+Renders a project-tree-style view restricted to the classes defined in the files or folders you pick. You choose the tree type (Simple or Complete) upfront, then select any number of files and/or folders from a multi-select quick-pick. The classes defined within the selection are kept, and their full inheritance is brought in — superclasses (and, for Complete, descendants) are shown even when they live in modules outside the selection.
+
+**Trigger:** Command Palette: `PyTree: Pick Paths...`
+
+<!-- VIDEO PLACEHOLDER: pick paths demo -->
+
+---
+
+### All Except
+
+The inverse of Pick Paths: renders a project-tree view of the workspace **excluding** the files or folders you pick. Useful for skipping test directories, generated code, or vendored libraries. You choose the tree type (Simple or Complete) upfront, then select any number of files and/or folders to exclude. Classes inside excluded paths are never rendered, even when they would otherwise be pulled in as ancestors or descendants of included classes.
+
+**Trigger:** Command Palette: `PyTree: All Except...`
+
+<!-- VIDEO PLACEHOLDER: all except demo -->
+
+---
+
 ### Change Inheritance (Drag & Drop)
 
 In any tree view, click and drag an inheritance arrow off its current parent and drop it onto a different class to rewrite the inheritance directly in the source file. A confirmation dialog is always shown before the change is applied. If the new parent introduces attribute or method conflicts with the child, those conflicts are listed upfront so you can decide whether to proceed; otherwise a plain confirmation prompt asks you to verify the change. Cycles (where the new parent is already a descendant of the child) are blocked.
@@ -132,6 +152,8 @@ Pan position, zoom level, and the file-paths checkbox state are persisted per we
 | `pytree.showCompleteClassTree` | PyTree: Complete Class Tree | `Ctrl+Alt+T`     |
 | `pytree.showProjectTree`       | PyTree: Project Tree        | `Ctrl+Alt+P`     |
 | `pytree.pickClasses`           | PyTree: Pick Classes...     | —                |
+| `pytree.pickPaths`             | PyTree: Pick Paths...       | —                |
+| `pytree.allExcept`             | PyTree: All Except...       | —                |
 
 ---
 

@@ -1,6 +1,7 @@
 import type { ClassNode, BoxMeasures } from '../../../types';
 import { UI } from '../../../config';
 import { Svg, Group, HtmlRoot } from '../../components';
+import type { FilterInfo } from '../../components/WebViewOptions';
 import {
     renderClassBox,
     measureClassBox,
@@ -127,7 +128,8 @@ function centerFirstGridPositions(
 
 export function renderProjectTree(
     componentLayers: ClassNode[][][],
-    allNodes: Map<string, ClassNode>
+    allNodes: Map<string, ClassNode>,
+    filterInfo?: FilterInfo
 ): string {
     const { verticalGap, horizontalGap } = UI.tree;
 
@@ -216,6 +218,6 @@ export function renderProjectTree(
                     transform: 'translate(0,0) scale(1)',
                     children: edgesSvg + boxesSvg,
                 }),
-        }) + renderViewportScript({ initialScale: 0.5 })
+        }) + renderViewportScript({ initialScale: 0.5, filterInfo })
     );
 }

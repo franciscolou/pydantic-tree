@@ -7,6 +7,8 @@ All notable changes to the "PyTree" extension will be documented in this file.
 ## Added
 
 - Variadic parameters (\*args, \*\*kwargs) now are displayed in method signatures
+- Added **Pick Paths** (selects classes defined in chosen files/folders and renders them with their full inheritance, even when ancestors or descendants live outside the selection)
+- Added **All Except** (renders the project tree of the workspace excluding the selected files/folders — useful for filtering out test directories or generated code)
 
 ### Changed
 

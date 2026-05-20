@@ -37,6 +37,14 @@
             {
                 "command": "pytree.pickClasses",
                 "title": "PyTree: Pick Classes..."
+            },
+            {
+                "command": "pytree.pickPaths",
+                "title": "PyTree: Pick Paths..."
+            },
+            {
+                "command": "pytree.allExcept",
+                "title": "PyTree: All Except..."
             }
         ],
         "keybindings": [

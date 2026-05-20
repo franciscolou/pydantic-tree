@@ -1,6 +1,40 @@
 import { Messages } from '../../config';
 
-export function WebViewOptions(): string {
+export interface FilterInfo {
+    mode: 'include' | 'exclude';
+    paths: string[];
+}
+
+function escapeHtml(s: string): string {
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function renderFilterBadge(info: FilterInfo): string {
+    const label = info.mode === 'exclude' ? 'Excluded' : 'Showing';
+    const count = info.paths.length;
+    const items = info.paths
+        .map(p => `<div class="filter-info-item">${escapeHtml(p)}</div>`)
+        .join('');
+    return `
+<div id="filter-info">
+    <div id="filter-info-chip">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="display:block;flex-shrink:0;">
+            <path d="M2 3h9M3.5 6.5h6M5 10h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <span>${label}: ${count} path${count === 1 ? '' : 's'}</span>
+    </div>
+    <div id="filter-info-popup">
+        <div id="filter-info-header">${label} path${count === 1 ? '' : 's'}</div>
+        <div id="filter-info-list">${items}</div>
+    </div>
+</div>`;
+}
+
+export function WebViewOptions(filterInfo?: FilterInfo): string {
     return `
 <style>
   #export-btn {
@@ -8,6 +42,75 @@ export function WebViewOptions(): string {
     transition: background 0.15s ease;
   }
   #export-btn:hover {
+    background: var(--pt-border);
+  }
+  #filter-info {
+    position: relative;
+  }
+  #filter-info-chip {
+    background: var(--pt-panel-bg);
+    border: 1px solid var(--pt-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    cursor: default;
+    color: var(--pt-text);
+    font-size: 12px;
+    user-select: none;
+    transition: background 0.15s ease;
+  }
+  #filter-info-chip:hover {
+    background: var(--pt-border);
+  }
+  #filter-info-popup {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--pt-panel-bg);
+    border: 1px solid var(--pt-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 10;
+    min-width: 220px;
+    max-width: 480px;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  #filter-info:hover #filter-info-popup {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  #filter-info-header {
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--pt-section-label);
+    border-bottom: 1px solid var(--pt-border);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    user-select: none;
+  }
+  #filter-info-list {
+    padding: 4px 0;
+  }
+  .filter-info-item {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--pt-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .filter-info-item:hover {
     background: var(--pt-border);
   }
   #export-menu {
@@ -58,6 +161,7 @@ export function WebViewOptions(): string {
         z-index: 1000;
     "
 >
+    ${filterInfo ? renderFilterBadge(filterInfo) : ''}
     <div style="position: relative;">
         <div
             id="export-btn"
