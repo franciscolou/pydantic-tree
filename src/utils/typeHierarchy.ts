@@ -3,9 +3,6 @@ import { ClassNode } from '../types';
 import { extractClasses } from './parser';
 import { layerByLongestPath } from '../ui/utils/resolve';
 
-const EXCLUDED_DIR =
-    /[\/\\](\.venv|venv|node_modules|__pycache__|\.git|site-packages)[\/\\]/;
-
 // Pylance resolves every Python stdlib/builtin type (object, str,
 // BaseException, abc.ABC, typing.Protocol, …) to a stub under
 // `dist/typeshed-fallback/stdlib/`. Other LSPs that consume typeshed follow
@@ -14,13 +11,6 @@ const EXCLUDED_DIR =
 // ancestors stay visible.
 const STDLIB_STUB_PATH =
     /[\/\\](?:typeshed-fallback|typeshed)[\/\\]stdlib[\/\\]/;
-
-function isWorkspaceFile(uri: vscode.Uri): boolean {
-    if (!vscode.workspace.getWorkspaceFolder(uri)) {
-        return false;
-    }
-    return !EXCLUDED_DIR.test(uri.fsPath);
-}
 
 function isPythonStdlib(item: vscode.TypeHierarchyItem): boolean {
     return STDLIB_STUB_PATH.test(item.uri.path);
@@ -78,7 +68,7 @@ export async function prepareTypeHierarchyAt(
 //   fileUris — URIs of non-root items that passed the filter
 async function bfsTypeHierarchy(
     rootItem: vscode.TypeHierarchyItem,
-    command: 'vscode.provideSubtypes' | 'vscode.provideSupertypes',
+    command: 'vscode.provideSupertypes',
     accept: (item: vscode.TypeHierarchyItem) => boolean
 ): Promise<{
     items: Map<string, vscode.TypeHierarchyItem>;
@@ -218,24 +208,3 @@ export async function buildAncestorLayers(
     );
 }
 
-// Walks subtypes via Pylance (workspace files only), populates `classes` with
-// descendant ClassNodes, and returns them as longest-path layers.
-export async function buildDescendantLayers(
-    rootItem: vscode.TypeHierarchyItem,
-    focusNode: ClassNode,
-    classes: Map<string, ClassNode>
-): Promise<ClassNode[][]> {
-    const { items, edges, fileUris } = await bfsTypeHierarchy(
-        rootItem,
-        'vscode.provideSubtypes',
-        item => isWorkspaceFile(item.uri)
-    );
-    const byUriName = await extractIntoClasses(fileUris, classes);
-    return buildLayersFromBfs(
-        itemKey(rootItem),
-        items,
-        edges,
-        byUriName,
-        focusNode
-    );
-}

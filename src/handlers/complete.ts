@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { openWebview, PanelState } from '../utils/webview';
-import { resolveClassNode } from '../utils/resolve';
+import { resolveClassNode, resolveLayeredNodes } from '../utils/resolve';
 import { Messages } from '../config';
 import { extractClasses } from '../utils/parser';
+import { scanWorkspaceClasses } from '../utils/scan';
+import { collectDescendants } from '../ui/utils/resolve';
 import {
     buildAncestorLayers,
-    buildDescendantLayers,
     prepareTypeHierarchyAt,
 } from '../utils/typeHierarchy';
 import { renderClassTree } from '../ui/render/trees/single';
@@ -26,7 +27,9 @@ export async function showCompleteClassTree(
         line: focusNode.definedAtLine,
     };
 
-    const computeState = async (): Promise<PanelState | null> => {
+    const computeState = async (
+        progress?: vscode.Progress<{ message?: string; increment?: number }>
+    ): Promise<PanelState | null> => {
         const node = await resolveClassNode(focusRef);
         if (!node) {
             return null;
@@ -40,10 +43,26 @@ export async function showCompleteClassTree(
             vscode.window.showInformationMessage(Messages.errors.pylanceRequired);
             return null;
         }
-        const [ancestors, descendants] = await Promise.all([
-            buildAncestorLayers(rootItem, node, classes),
-            buildDescendantLayers(rootItem, node, classes),
-        ]);
+
+        // Ancestors: Pylance's `provideSupertypes` is reliable because the
+        // focus file (and its imports) are already loaded into the index.
+        const ancestors = await buildAncestorLayers(rootItem, node, classes);
+
+        // Descendants: Pylance's `provideSubtypes` returns only what Pyright
+        // has type-checked, which on large repos like Django is incomplete
+        // even with `diagnosticMode: workspace` after a full reindex. Fall
+        // back to the same workspace-scan strategy used by the Project Tree.
+        const allClasses = await scanWorkspaceClasses(progress);
+        for (const [id, n] of allClasses) {
+            if (!classes.has(id)) {
+                classes.set(id, n);
+            }
+        }
+        const descendants = resolveLayeredNodes(
+            collectDescendants(node.id, classes),
+            classes
+        );
+
         const fileUris = [
             ...new Set([...classes.values()].map(n => n.fileUri)),
         ];
@@ -54,18 +73,30 @@ export async function showCompleteClassTree(
         };
     };
 
-    const state = await computeState();
+    let state: PanelState | null = null;
+    await vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: Messages.status.scanningFiles,
+            cancellable: false,
+        },
+        async reporter => {
+            state = await computeState(reporter);
+        }
+    );
+
     if (!state) {
         return;
     }
+    const finalState: PanelState = state;
 
     await openWebview(
         context,
         'pytreeClassTree',
         Messages.webView.titles.completeClassTree(focusNode.name),
-        state.html,
-        state.fileUris,
+        finalState.html,
+        finalState.fileUris,
         'complete:' + focusNode.id,
-        computeState
+        () => computeState()
     );
 }
